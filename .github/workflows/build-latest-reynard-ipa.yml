@@ -44,9 +44,19 @@ jobs:
           set -euxo pipefail
           brew list ldid >/dev/null 2>&1 || brew install ldid
           brew list cbindgen >/dev/null 2>&1 || brew install cbindgen
+          brew list llvm >/dev/null 2>&1 || brew install llvm
+          brew list wasi-libc >/dev/null 2>&1 || brew install wasi-libc
+
           rustup target add aarch64-apple-ios
+
           echo "CBINDGEN=/opt/homebrew/bin/cbindgen" >> "$GITHUB_ENV"
+          echo "WASM_CC=/opt/homebrew/opt/llvm/bin/clang" >> "$GITHUB_ENV"
+          echo "WASM_CXX=/opt/homebrew/opt/llvm/bin/clang++" >> "$GITHUB_ENV"
+
           /opt/homebrew/bin/cbindgen --version
+          /opt/homebrew/opt/llvm/bin/clang --version
+          /opt/homebrew/opt/llvm/bin/clang --target=wasm32-wasi -c -x c /dev/null -o /tmp/wasm-test.o
+          ls -lah /tmp/wasm-test.o
 
       - name: Make scripts executable
         shell: bash
@@ -87,7 +97,8 @@ jobs:
           s = p.read_text()
 
           target_line = 'echo "ac_add_options --target=$TARGET"'
-          ld64_line = '  echo "ac_add_options --enable-linker=ld64"'
+          ld64_line = '''  echo "ac_add_options --enable-linker=ld64"
+          echo "ac_add_options --with-wasi-sysroot=/opt/homebrew/share/wasi-sysroot"'''
 
           if ld64_line not in s:
               if target_line not in s:
