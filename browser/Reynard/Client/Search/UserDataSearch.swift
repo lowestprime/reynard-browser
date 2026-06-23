@@ -78,7 +78,7 @@ final class UserDataSearch {
             limit: limit,
             isPrivate: activeTabMode == .private
         ).filter { $0.id != excludingTabID }
-        let historyMatches = historyStore.search(matching: query, limit: limit).items
+        let historyMatches = activeTabMode == .private ? [] : historyStore.search(matching: query, limit: limit).items
         let bookmarkMatches = bookmarkStore.bookmarks(matchingPrefix: query, limit: limit)
         
         var bestMatchCandidates: [UserDataSearchResult] = []
@@ -107,7 +107,7 @@ final class UserDataSearch {
             limit: limit,
             isPrivate: activeTabMode == .private
         ).filter { $0.id != excludingTabID }
-        let historyMatches = historyStore.search(matching: query, limit: limit).items
+        let historyMatches = activeTabMode == .private ? [] : historyStore.search(matching: query, limit: limit).items
         let bookmarkMatches = bookmarkStore.bookmarks(matching: query, limit: limit)
         
         var matches: [UserDataSearchResult] = []

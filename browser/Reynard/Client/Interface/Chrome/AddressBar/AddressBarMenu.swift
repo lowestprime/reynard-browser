@@ -34,9 +34,7 @@ enum AddressBarMenu {
         onAddonSelected: @escaping (AddonMenuItem) -> Void,
         onChangeWebsiteMode: @escaping () -> Void,
         onWebsiteSettings: @escaping () -> Void,
-        onPageZoomOut: @escaping () -> Void,
-        onPageZoomIn: @escaping () -> Void,
-        onPageZoomReset: @escaping () -> Void,
+        onPageZoomControls: @escaping () -> Void,
         onBookmark: @escaping (Bool) -> Void
     ) -> UIMenu {
         var tabActions: [UIMenuElement] = []
@@ -93,9 +91,7 @@ enum AddressBarMenu {
         if let pageZoom {
             pageActions.append(pageZoomMenu(
                 state: pageZoom,
-                onZoomOut: onPageZoomOut,
-                onZoomIn: onPageZoomIn,
-                onReset: onPageZoomReset
+                onControls: onPageZoomControls
             ))
         }
 
@@ -113,45 +109,32 @@ enum AddressBarMenu {
 
     private static func pageZoomMenu(
         state: PageZoomState,
-        onZoomOut: @escaping () -> Void,
-        onZoomIn: @escaping () -> Void,
-        onReset: @escaping () -> Void
+        onControls: @escaping () -> Void
     ) -> UIMenu {
-        let zoomOutAttributes: UIMenuElement.Attributes = state.canZoomOut ? [] : .disabled
-        let zoomInAttributes: UIMenuElement.Attributes = state.canZoomIn ? [] : .disabled
-        let resetAttributes: UIMenuElement.Attributes = state.hasSiteOverride ? [] : .disabled
         let defaultTitle = PageZoomLevel.displayTitle(for: state.defaultPercent)
+        let currentTitle = PageZoomLevel.displayTitle(for: state.percent)
 
-        return UIMenu(
-            title: "Page Zoom",
+        let menu = UIMenu(
+            title: "Page Zoom \(currentTitle)",
             image: UIImage(systemName: "textformat.size"),
             children: [
                 UIAction(
-                    title: "Zoom Out",
-                    image: UIImage(systemName: "minus.magnifyingglass"),
-                    attributes: zoomOutAttributes
-                ) { _ in
-                    onZoomOut()
-                },
-                UIAction(
-                    title: PageZoomLevel.displayTitle(for: state.percent),
+                    title: state.hasSiteOverride ? "Site Override: \(currentTitle)" : "Default: \(defaultTitle)",
                     attributes: .disabled
                 ) { _ in },
                 UIAction(
-                    title: "Zoom In",
-                    image: UIImage(systemName: "plus.magnifyingglass"),
-                    attributes: zoomInAttributes
+                    title: "Open Page Zoom Controls",
+                    image: UIImage(systemName: "slider.horizontal.3")
                 ) { _ in
-                    onZoomIn()
-                },
-                UIAction(
-                    title: "Reset to Default (\(defaultTitle))",
-                    image: UIImage(named: "reynard.arrow.clockwise"),
-                    attributes: resetAttributes
-                ) { _ in
-                    onReset()
+                    onControls()
                 },
             ]
         )
+
+        if #available(iOS 15.0, *) {
+            menu.subtitle = state.hasSiteOverride ? "Default \(defaultTitle)" : nil
+        }
+
+        return menu
     }
 }

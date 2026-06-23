@@ -248,6 +248,99 @@ Rollback path:
 - If archive-only download cannot find the run artifact, rerun the main checkpoint workflow once to produce a fresh `gecko-dist-aarch64-apple-ios` artifact and use that run ID.
 - If cache restore/save causes eviction/thrashing, reduce `SCCACHE_CACHE_SIZE` below `8G` or narrow restore keys; do not cache the full Firefox object directory without measured size evidence.
 
+## Feature-Complete UX Batch After Page Zoom Release
+
+Purpose: continue from the verified Page Zoom prerelease and add the next native UX/functionality batch while keeping upstream PR `minh-ton/reynard-browser#153` as the merge path. The previous prerelease remains immutable evidence for the Page Zoom baseline; the next deliverable must be a new verified fork prerelease and an updated PR branch.
+
+Current verified source state:
+
+- Local branch: `main`, tracking `origin/main`.
+- Upstream PR: `https://github.com/minh-ton/reynard-browser/pull/153`.
+- PR source: `lowestprime:main`.
+- PR base: `minh-ton:main`.
+- PR state checked after release: open, non-draft, mergeable.
+- Local `HEAD`: `6f2a03d44c51bd36cc7a836dbd94a5ee33559392` (`docs: record verified Page Zoom IPA build`).
+- Verified app-code release commit: `ac7c446aa4a8831579945e4d4cb49a33ce8cf670`.
+- Verified release: `https://github.com/lowestprime/reynard-browser/releases/tag/reynard-page-zoom-2026-06-23`.
+- Verified run: `28038685786`.
+- Verified artifact: `Reynard-latest-main-ipa`.
+- Verified local IPA: `C:\Users\Cooper\Downloads\Reynard-latest-main-28038685786\Reynard.ipa`.
+- Verified SHA-256: `5ee4c3d7259ca22c7b1ce61c072da2a67c328b32137c24e58c02adae9c573291`.
+
+Feature classification:
+
+- A. Page Zoom refinement: native-app UI/settings logic unless new Gecko behavior is discovered. Expected build path: archive-only using the `gecko-dist-aarch64-apple-ios` checkpoint from run `28038685786`.
+- B. Keyboard/page-content behavior: native UIKit/GeckoView layout and lifecycle logic unless focused-input geometry from Gecko is required. Expected build path: archive-only.
+- C. Background/session preservation and stability: native lifecycle/session/preferences/JIT-state handling with manual physical-device validation for OS/JIT behavior. Expected build path: archive-only.
+- D. Bookmark/history import/export/sync: native app data/storage/UI work. Real Firefox Sync is out of scope unless existing account/protocol support is discovered. Expected build path: archive-only.
+- E. Address bar autocomplete: native address bar suggestions sourced from local bookmarks/history/open tabs/common URL parsing/search fallback. Expected build path: archive-only.
+- F. OLED jet-black theme and accent customization: native settings/theme/accent/resource work. Expected build path: archive-only.
+
+Progress for this continuation:
+
+- [x] New goal objective file read.
+- [x] Root `AGENTS.md` reread.
+- [x] Root `PLANS.md` reread.
+- [x] Existing ExecPlan reread.
+- [x] Local branch and upstream PR source checked.
+- [x] Existing Page Zoom, keyboard, lifecycle/session, bookmark/history, address bar, and theme code inspected.
+- [x] Page Zoom slider refinement implemented.
+- [x] Keyboard/page-content behavior improved.
+- [x] Background/session preservation improvements implemented.
+- [x] Bookmark/history import/export entry points implemented or documented where unsupported.
+- [x] Address bar autocomplete implemented.
+- [x] OLED black theme and accent customization implemented.
+- [x] Local static checks passed.
+- [ ] Archive-only workflow run completed using an existing Gecko checkpoint, or exact evidence recorded for why a full checkpoint run was required.
+- [ ] New IPA downloaded and verified.
+- [ ] New fork prerelease published without overwriting `reynard-page-zoom-2026-06-23`.
+- [ ] Upstream PR `#153` updated and confirmed open/mergeable where possible.
+
+Implemented native-only changes in this continuation:
+
+- Page Zoom: the address-bar page menu now opens a persistent Page Zoom sheet with a slider, zoom out, reset, zoom in, live percent display, and live `GeckoSessionSettings` refresh. Slider mapping/clamping is centralized in `PageZoomLevel`.
+- Keyboard/page content: focused-input relocation clamps Gecko focused-input ratios and uses actual keyboard/content intersection, avoiding unnecessary shifts for non-overlapping/floating keyboard frames.
+- Background/session preservation: app and scene lifecycle notifications now capture the visible tab thumbnail, flush tab/session state, reactivate the selected Gecko session, refresh chrome/navigation state, and reapply page zoom on foreground.
+- Bookmark/history transfer: bookmarks can be imported from Firefox/Netscape-style HTML and exported to HTML; history can be imported/exported as local CSV with privacy confirmations. This is local transfer only and does not claim Firefox Sync.
+- Address bar autocomplete: suggestions now always include local common-domain/URL fallback completions, search-engine suggestions are opt-in in Search settings and debounced, and private browsing no longer surfaces regular history matches.
+- Appearance: Appearance settings now include theme mode, OLED Black, and accent color choices; app windows/chrome/settings/library surfaces apply the selected theme/accent without restart.
+
+Build strategy:
+
+- Avoid Gecko edits for this batch unless inspection proves they are necessary.
+- Reuse a valid `gecko-dist-aarch64-apple-ios` artifact from run `28038685786` through the archive-only workflow for native-only changes.
+- If that checkpoint is expired or unavailable, record the exact artifact lookup/download failure and run the checkpointed full workflow once.
+- Do not leave a long full Gecko build running as passive polling work; if a long build is unavoidable, record a handoff in this ExecPlan.
+
+Validation gates for this continuation:
+
+- `git diff --check`.
+- `bash -n tools/development/build-gecko.sh`.
+- `bash -n tools/release/build-app.sh`.
+- `bash -n browser/Scripts/AddGecko.sh`.
+- YAML parse checks for workflow files if changed.
+- `git -C engine/firefox apply --check <patch>` only if a Gecko patch changes.
+- GitHub Actions archive/build run.
+- Download produced `Reynard.ipa`.
+- `unzip -tq` on the IPA.
+- Verify main app, `Reynard Helper.appex`, `OpenIn.appex`, and `GeckoView.framework/GeckoView` are packaged.
+- Verify feature strings/symbols for new UI where possible.
+- Verify main app and extension build versions match the expected short SHA.
+- Record new IPA SHA-256.
+
+Manual physical-device validation that must not be claimed without evidence:
+
+- Install the new unsigned IPA through the intended sideload flow.
+- Page Zoom slider and plus/minus controls at 75%, 100%, 150%, and 200%.
+- Focus text inputs, textareas, contenteditable fields, and forms with the keyboard visible at 75%, 100%, 150%, and 200%.
+- Background app for 1 minute and return.
+- Background app for 10+ minutes and return.
+- Switch between several tabs after resume.
+- Resume with JIT disabled.
+- Resume with JIT previously enabled.
+- Low-memory or forced relaunch if testable.
+- Verify pages, tabs, zoom, theme/accent, and navigation state remain stable.
+
 ## Plan of Work
 
 First repair `.github/workflows/build-latest-reynard-ipa.yml` so the dependency step installs `lld`, prepends `/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/llvm/bin` for WASM-only wrapper commands, uses `command -v wasm-ld`, and validates a real WASM link using the Homebrew WASI sysroot. Commit, push, trigger the workflow, and inspect the result.

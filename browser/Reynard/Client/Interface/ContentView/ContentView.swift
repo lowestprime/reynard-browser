@@ -70,7 +70,11 @@ final class ContentView: UIView {
     
     private func configureAppearance() {
         translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = .systemBackground
+        applyAppearance()
+    }
+
+    func applyAppearance() {
+        backgroundColor = BrowserAppearance.backgroundColor
     }
     
     private func configureHierarchy() {
@@ -177,7 +181,7 @@ final class ContentView: UIView {
             let bottomRatio = await session.focusedInputBottomRatio()
             guard !Task.isCancelled else { return }
             
-            inputBottomRatio = bottomRatio
+            inputBottomRatio = min(max(bottomRatio, 0), 1)
             superview?.layoutIfNeeded()
             let newOffset = calculateFocusedInputOffset(keyboardFrame: keyboardFrame)
             guard abs(newOffset - focusedInputOffset) > UX.focusedInputOffsetThreshold else {
@@ -195,8 +199,15 @@ final class ContentView: UIView {
         
         let unshiftedFrame = frame.offsetBy(dx: 0, dy: focusedInputOffset)
         guard unshiftedFrame.height > 1 else { return 0 }
+
+        let overlappingKeyboardFrame = unshiftedFrame.intersection(keyboardFrame)
+        guard !overlappingKeyboardFrame.isNull,
+              overlappingKeyboardFrame.height > 0,
+              overlappingKeyboardFrame.width > 0 else {
+            return 0
+        }
         
-        let keyboardOverlap = max(0, unshiftedFrame.maxY - keyboardFrame.minY)
+        let keyboardOverlap = max(0, unshiftedFrame.maxY - overlappingKeyboardFrame.minY)
         guard keyboardOverlap > 0 else { return 0 }
         
         let focusBottom = unshiftedFrame.height * inputBottomRatio

@@ -13,9 +13,7 @@ protocol AddressBarDelegate: AnyObject {
     func addressBar(_ addressBar: AddressBar, didSelectAddon item: AddonMenuItem)
     func addressBarDidRequestWebsiteModeChange(_ addressBar: AddressBar)
     func addressBarDidRequestWebsiteSettings(_ addressBar: AddressBar)
-    func addressBarDidRequestPageZoomOut(_ addressBar: AddressBar)
-    func addressBarDidRequestPageZoomIn(_ addressBar: AddressBar)
-    func addressBarDidRequestPageZoomReset(_ addressBar: AddressBar)
+    func addressBarDidRequestPageZoomControls(_ addressBar: AddressBar)
     func addressBar(_ addressBar: AddressBar, didRequestBookmarkInFavorites favorites: Bool)
 }
 
@@ -227,7 +225,7 @@ final class AddressBar: UIView {
         configureHierarchy()
         configureConstraints()
         configureTargets()
-        applyState()
+        applyAppearance()
     }
     
     required init?(coder: NSCoder) {
@@ -307,17 +305,9 @@ final class AddressBar: UIView {
                 guard let self else { return }
                 self.delegate?.addressBarDidRequestWebsiteSettings(self)
             },
-            onPageZoomOut: { [weak self] in
+            onPageZoomControls: { [weak self] in
                 guard let self else { return }
-                self.delegate?.addressBarDidRequestPageZoomOut(self)
-            },
-            onPageZoomIn: { [weak self] in
-                guard let self else { return }
-                self.delegate?.addressBarDidRequestPageZoomIn(self)
-            },
-            onPageZoomReset: { [weak self] in
-                guard let self else { return }
-                self.delegate?.addressBarDidRequestPageZoomReset(self)
+                self.delegate?.addressBarDidRequestPageZoomControls(self)
             },
             onBookmark: { [weak self] favorites in
                 guard let self else { return }
@@ -437,6 +427,13 @@ final class AddressBar: UIView {
     
     func setLoadingProgress(_ progress: Float, isLoading: Bool) {
         loadingState = isLoading ? .loading(progress: progress) : .idle
+        applyState()
+    }
+
+    func applyAppearance() {
+        tintColor = BrowserAppearance.accentColor
+        addressBarContent.backgroundColor = BrowserAppearance.surfaceColor
+        progressView.progressTintColor = BrowserAppearance.accentColor
         applyState()
     }
     

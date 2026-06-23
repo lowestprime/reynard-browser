@@ -12,13 +12,18 @@ final class SearchPreferencesViewController: SettingsTableViewController {
         case search
         
         var text: SettingsSectionText {
-            return SettingsSectionText()
+            return SettingsSectionText(
+                footerTitle: "Address bar suggestions use local bookmarks, history, tabs, and common domains. Search-engine suggestions are sent only when enabled."
+            )
         }
     }
     
     private enum Row: CaseIterable {
         case searchEngine
+        case searchSuggestions
     }
+
+    private let searchSuggestionsSwitch = UISwitch()
     
     init() {
         super.init(style: .insetGrouped)
@@ -31,6 +36,7 @@ final class SearchPreferencesViewController: SettingsTableViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        refreshDisplayedState()
         tableView.reloadData()
     }
     
@@ -70,6 +76,12 @@ final class SearchPreferencesViewController: SettingsTableViewController {
             cell.detailTextLabel?.textColor = .secondaryLabel
             cell.accessoryType = .disclosureIndicator
             return cell
+        case .searchSuggestions:
+            let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
+            cell.textLabel?.text = "Search Suggestions"
+            cell.selectionStyle = .none
+            cell.accessoryView = searchSuggestionsSwitch
+            return cell
         }
     }
     
@@ -83,7 +95,22 @@ final class SearchPreferencesViewController: SettingsTableViewController {
         switch Row.allCases[indexPath.row] {
         case .searchEngine:
             navigationController?.pushViewController(SearchEnginePreferencesViewController(), animated: true)
+        case .searchSuggestions:
+            return
         }
     }
-    
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        searchSuggestionsSwitch.addTarget(self, action: #selector(searchSuggestionsSwitchDidChange), for: .valueChanged)
+        refreshDisplayedState()
+    }
+
+    private func refreshDisplayedState() {
+        searchSuggestionsSwitch.isOn = Prefs.SearchSettings.searchSuggestionsEnabled
+    }
+
+    @objc private func searchSuggestionsSwitchDidChange() {
+        Prefs.SearchSettings.searchSuggestionsEnabled = searchSuggestionsSwitch.isOn
+    }
 }

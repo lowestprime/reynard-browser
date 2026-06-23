@@ -16,6 +16,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let browserViewController = BrowserViewController()
         let window = UIWindow(windowScene: windowScene)
         window.rootViewController = browserViewController
+        BrowserAppearance.apply(to: window)
         window.makeKeyAndVisible()
         self.window = window
         
@@ -28,13 +29,26 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     
     func sceneDidDisconnect(_ scene: UIScene) {}
     
-    func sceneDidBecomeActive(_ scene: UIScene) {}
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        BrowserAppearance.apply(to: window)
+        browserViewController?.restoreBrowserStateAfterForeground()
+    }
     
-    func sceneWillResignActive(_ scene: UIScene) {}
+    func sceneWillResignActive(_ scene: UIScene) {
+        browserViewController?.saveBrowserStateForLifecycleEvent("sceneWillResignActive")
+    }
     
-    func sceneWillEnterForeground(_ scene: UIScene) {}
+    func sceneWillEnterForeground(_ scene: UIScene) {
+        BrowserAppearance.apply(to: window)
+    }
     
-    func sceneDidEnterBackground(_ scene: UIScene) {}
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        browserViewController?.saveBrowserStateForLifecycleEvent("sceneDidEnterBackground")
+    }
+
+    private var browserViewController: BrowserViewController? {
+        window?.rootViewController as? BrowserViewController
+    }
     
     private func handleIncomingURLContexts(_ urlContexts: Set<UIOpenURLContext>) {
         guard let incomingURL = urlContexts.first?.url else {

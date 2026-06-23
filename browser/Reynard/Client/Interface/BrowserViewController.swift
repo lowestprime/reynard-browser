@@ -31,6 +31,7 @@ final class BrowserViewController: UIViewController {
     private var preFullscreenOrientation: UIInterfaceOrientation?
     weak var fullscreenSession: GeckoSession?
     private let allowsSidebarHosting: Bool
+    private var visibleKeyboardFrame: CGRect?
     private(set) var browserLayout = BrowserLayout.initial(
         interfaceIdiom: UIDevice.current.userInterfaceIdiom
     )
@@ -109,13 +110,14 @@ final class BrowserViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = BrowserAppearance.backgroundColor
         
         if sidebarCoordinator.installHostIfNeeded() {
             return
         }
         
         configureBrowserInterface()
+        applyBrowserAppearance()
         observeNotifications()
         contextMenuCoordinator.configure()
         downloadsCoordinator.startObservingStore()
@@ -194,6 +196,10 @@ final class BrowserViewController: UIViewController {
                 self.contentView.setTransitionTransform(.identity)
                 self.browserChrome.resetHorizontalTransition()
                 self.tabOverview.refreshForCurrentOrientation()
+                if self.visibleKeyboardFrame != nil {
+                    self.contentView.resetFocusedInputRelocation()
+                    self.visibleKeyboardFrame = nil
+                }
                 DispatchQueue.main.async {
                     guard self.isViewLoaded, self.view.window != nil else {
                         return
@@ -565,6 +571,42 @@ final class BrowserViewController: UIViewController {
             name: .pageZoomPreferencesDidChange,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appearancePreferencesDidChange),
+            name: .appearancePreferencesDidChange,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationWillResignActive),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationWillTerminate),
+            name: UIApplication.willTerminateNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidReceiveMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
     }
     
     // MARK: - Keyboard
@@ -575,10 +617,12 @@ final class BrowserViewController: UIViewController {
         }
         
         let keyboardFrame = view.convert(frameValue.cgRectValue, from: nil)
+        let keyboardIntersection = view.bounds.intersection(keyboardFrame)
         let keyboardInset = max(
             0,
-            view.bounds.maxY - keyboardFrame.minY - view.safeAreaInsets.bottom
+            keyboardIntersection.height - view.safeAreaInsets.bottom
         )
+        visibleKeyboardFrame = keyboardInset > 0 ? keyboardFrame : nil
         let animation = keyboardAnimation(from: notification)
         if !searchOverlayCoordinator.isFocused && !tabOverview.isPresented && keyboardInset > 0 {
             contentView.relocateFocusedInput(
@@ -603,6 +647,7 @@ final class BrowserViewController: UIViewController {
     
     @objc private func keyboardWillHide(_ notification: Notification) {
         let animation = keyboardAnimation(from: notification)
+        visibleKeyboardFrame = nil
         contentView.resetFocusedInputRelocation(
             animationDuration: animation.duration,
             animationOptions: animation.curve
@@ -626,6 +671,66 @@ final class BrowserViewController: UIViewController {
         UIView.animate(withDuration: animation.duration, delay: 0, options: [animation.curve]) {
             self.view.layoutIfNeeded()
         }
+    }
+
+    // MARK: - App Lifecycle
+
+    func saveBrowserStateForLifecycleEvent(_ _: String) {
+        guard isViewLoaded else {
+            return
+        }
+
+        captureThumbnailForVisibleTab(at: tabManager.selectedTabIndex)
+        tabManager.flushStateForLifecycleEvent()
+    }
+
+    func restoreBrowserStateAfterForeground() {
+        guard isViewLoaded else {
+            return
+        }
+
+        BrowserAppearance.apply(to: view.window)
+        if let session = tabManager.selectedTab?.session {
+            sessionManager.activate(session)
+        }
+        syncBrowserNavigationChrome(animated: false)
+        refreshAddressBar()
+        updateNavigationButtons()
+        applyPageZoomToSelectedTab()
+        updateBrowserLayout(animated: false)
+    }
+
+    @objc private func appearancePreferencesDidChange() {
+        applyBrowserAppearance()
+    }
+
+    @objc private func applicationWillResignActive() {
+        saveBrowserStateForLifecycleEvent("willResignActive")
+    }
+
+    @objc private func applicationDidEnterBackground() {
+        saveBrowserStateForLifecycleEvent("didEnterBackground")
+    }
+
+    @objc private func applicationDidBecomeActive() {
+        restoreBrowserStateAfterForeground()
+    }
+
+    @objc private func applicationWillTerminate() {
+        saveBrowserStateForLifecycleEvent("willTerminate")
+    }
+
+    @objc private func applicationDidReceiveMemoryWarning() {
+        saveBrowserStateForLifecycleEvent("memoryWarning")
+    }
+
+    private func applyBrowserAppearance() {
+        BrowserAppearance.apply(to: view.window)
+        view.backgroundColor = BrowserAppearance.backgroundColor
+        contentView.applyAppearance()
+        browserChrome.applyAppearance()
+        view.tintColor = BrowserAppearance.accentColor
+        setNeedsStatusBarAppearanceUpdate()
     }
     
     @objc func addressBarPositionDidChange() {

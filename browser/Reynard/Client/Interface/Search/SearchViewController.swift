@@ -70,7 +70,7 @@ final class SearchViewController: UIViewController, UITableViewDataSource, UITab
         return view
     }()
     
-    private lazy var completionsHeaderView = makeSectionHeaderView(title: "\(viewModel.completionProvider.name) Suggestions")
+    private lazy var completionsHeaderView = makeSectionHeaderView(title: viewModel.completionSectionTitle)
     private lazy var userDataHeaderView = makeSectionHeaderView(title: "Bookmarks, History, and Tabs")
     
     // MARK: - Lifecycle

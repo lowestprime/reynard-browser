@@ -9,25 +9,40 @@ import UIKit
 
 final class AppearancePreferencesViewController: SettingsTableViewController {
     private enum Section: CaseIterable {
+        case theme
+        case accent
         case tabs
         
         var text: SettingsSectionText {
             switch self {
+            case .theme:
+                return SettingsSectionText(
+                    headerTitle: "Theme",
+                    footerTitle: "OLED Black uses true black surfaces when the interface is in dark appearance."
+                )
+            case .accent:
+                return SettingsSectionText(headerTitle: "Accent")
             case .tabs:
                 return SettingsSectionText(headerTitle: "Tabs")
             }
         }
     }
     
-    private enum Row: CaseIterable {
-        case BrowserChromePosition
+    private enum Row {
+        case theme(BrowserThemeMode)
+        case accent(BrowserAccentColor)
+        case browserChromePosition
         case landscapeTabBar
     }
     
     private let landscapeTabBarSwitch = UISwitch()
     
     private var displayedSections: [Section] {
-        return UIDevice.current.userInterfaceIdiom == .pad ? [] : Section.allCases
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return [.theme, .accent]
+        }
+
+        return Section.allCases
     }
     
     init() {
@@ -59,7 +74,7 @@ final class AppearancePreferencesViewController: SettingsTableViewController {
         guard displayedSections.indices.contains(section) else {
             return 0
         }
-        return Row.allCases.count
+        return rows(for: displayedSections[section]).count
     }
     
     override func sectionText(for section: Int) -> SettingsSectionText {
@@ -71,12 +86,23 @@ final class AppearancePreferencesViewController: SettingsTableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard displayedSections.indices.contains(indexPath.section),
-              Row.allCases.indices.contains(indexPath.row) else {
+              rows(for: displayedSections[indexPath.section]).indices.contains(indexPath.row) else {
             return UITableViewCell()
         }
-        
-        switch Row.allCases[indexPath.row] {
-        case .BrowserChromePosition:
+
+        switch rows(for: displayedSections[indexPath.section])[indexPath.row] {
+        case let .theme(mode):
+            let cell = UITableViewCell(style: .value1, reuseIdentifier: nil)
+            cell.textLabel?.text = mode.displayName
+            cell.accessoryType = mode == Prefs.AppearanceSettings.themeMode ? .checkmark : .none
+            return cell
+        case let .accent(accent):
+            let cell = UITableViewCell(style: .value1, reuseIdentifier: nil)
+            cell.textLabel?.text = accent.displayName
+            cell.imageView?.image = swatchImage(color: accent.color)
+            cell.accessoryType = accent == Prefs.AppearanceSettings.accentColor ? .checkmark : .none
+            return cell
+        case .browserChromePosition:
             let cell = BrowserChromePositionPickerCell(style: .default, reuseIdentifier: nil)
             cell.display(selectedPosition: Prefs.AppearanceSettings.addressBarPosition)
             cell.onPositionChanged = { position in
@@ -91,6 +117,25 @@ final class AppearancePreferencesViewController: SettingsTableViewController {
             return cell
         }
     }
+
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        guard displayedSections.indices.contains(indexPath.section),
+              rows(for: displayedSections[indexPath.section]).indices.contains(indexPath.row) else {
+            return
+        }
+
+        switch rows(for: displayedSections[indexPath.section])[indexPath.row] {
+        case let .theme(mode):
+            Prefs.AppearanceSettings.themeMode = mode
+            tableView.reloadSections(IndexSet(integer: indexPath.section), with: .automatic)
+        case let .accent(accent):
+            Prefs.AppearanceSettings.accentColor = accent
+            tableView.reloadSections(IndexSet(integer: indexPath.section), with: .automatic)
+        case .browserChromePosition, .landscapeTabBar:
+            return
+        }
+    }
     
     private func configureSwitch() {
         landscapeTabBarSwitch.addTarget(self, action: #selector(landscapeTabBarSwitchDidChange), for: .valueChanged)
@@ -102,5 +147,26 @@ final class AppearancePreferencesViewController: SettingsTableViewController {
     
     @objc private func landscapeTabBarSwitchDidChange() {
         Prefs.AppearanceSettings.showsLandscapeTabBar = landscapeTabBarSwitch.isOn
+    }
+
+    private func rows(for section: Section) -> [Row] {
+        switch section {
+        case .theme:
+            return BrowserThemeMode.allCases.map(Row.theme)
+        case .accent:
+            return BrowserAccentColor.allCases.map(Row.accent)
+        case .tabs:
+            return [.browserChromePosition, .landscapeTabBar]
+        }
+    }
+
+    private func swatchImage(color: UIColor) -> UIImage {
+        let size = CGSize(width: 22, height: 22)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2)
+            color.setFill()
+            UIBezierPath(ovalIn: rect).fill()
+        }
     }
 }

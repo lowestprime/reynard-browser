@@ -34,6 +34,7 @@ final class BrowserPreferences {
             // Search
             key("SearchSettings", "searchEngine"): SearchEngine.google.rawValue,
             key("SearchSettings", "customSearchTemplate"): "",
+            key("SearchSettings", "searchSuggestionsEnabled"): false,
             
             // JIT
             key("JITSettings", "isJITEnabled"): false,
@@ -50,6 +51,8 @@ final class BrowserPreferences {
             // Appearance
             key("AppearanceSettings", "addressBarPosition"): BrowserChromePosition.bottom.rawValue,
             key("AppearanceSettings", "showsLandscapeTabBar"): true,
+            key("AppearanceSettings", "themeMode"): BrowserThemeMode.system.rawValue,
+            key("AppearanceSettings", "accentColor"): BrowserAccentColor.highContrast.rawValue,
             
             // Bookmarks
             key("BookmarkSettings", "placeFoldersOnTop"): true,
@@ -121,6 +124,15 @@ final class BrowserPreferences {
             }
             set {
                 prefs.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forSetting: "SearchSettings", key: "customSearchTemplate")
+            }
+        }
+
+        static var searchSuggestionsEnabled: Bool {
+            get {
+                prefs.bool(forSetting: "SearchSettings", key: "searchSuggestionsEnabled")
+            }
+            set {
+                prefs.set(newValue, forSetting: "SearchSettings", key: "searchSuggestionsEnabled")
             }
         }
     }
@@ -330,6 +342,28 @@ final class BrowserPreferences {
             set {
                 prefs.set(newValue, forSetting: "AppearanceSettings", key: "showsLandscapeTabBar")
                 NotificationCenter.default.post(name: .landscapeTabBarDidChange, object: nil)
+            }
+        }
+
+        static var themeMode: BrowserThemeMode {
+            get {
+                let rawValue = prefs.string(forSetting: "AppearanceSettings", key: "themeMode") ?? BrowserThemeMode.system.rawValue
+                return BrowserThemeMode(rawValue: rawValue) ?? .system
+            }
+            set {
+                prefs.set(newValue.rawValue, forSetting: "AppearanceSettings", key: "themeMode")
+                NotificationCenter.default.post(name: .appearancePreferencesDidChange, object: nil)
+            }
+        }
+
+        static var accentColor: BrowserAccentColor {
+            get {
+                let rawValue = prefs.string(forSetting: "AppearanceSettings", key: "accentColor") ?? BrowserAccentColor.highContrast.rawValue
+                return BrowserAccentColor(rawValue: rawValue) ?? .highContrast
+            }
+            set {
+                prefs.set(newValue.rawValue, forSetting: "AppearanceSettings", key: "accentColor")
+                NotificationCenter.default.post(name: .appearancePreferencesDidChange, object: nil)
             }
         }
     }

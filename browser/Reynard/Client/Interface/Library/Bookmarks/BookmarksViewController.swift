@@ -7,7 +7,7 @@
 
 import UIKit
 
-final class BookmarksViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, UIGestureRecognizerDelegate {
+final class BookmarksViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, UIGestureRecognizerDelegate, UIDocumentPickerDelegate {
     private enum UX {
         static let searchResultLimit = 50
         static let sectionHeaderTopPadding: CGFloat = 0
@@ -21,8 +21,12 @@ final class BookmarksViewController: UIViewController, UITableViewDataSource, UI
     private var sections: [(title: String, items: [BookmarkContentSnapshot])] = []
     private var query = ""
     private var searchVersion = 0
+    private var documentImportMode: DocumentImportMode?
     private var isRoot: Bool {
         return folderID == nil
+    }
+    private enum DocumentImportMode {
+        case bookmarks
     }
     private lazy var newFolderButton = UIBarButtonItem(
         title: "New Folder",
@@ -106,7 +110,7 @@ final class BookmarksViewController: UIViewController, UITableViewDataSource, UI
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.backgroundColor = .systemGroupedBackground
+        applyAppearance()
         installLayout()
         
         tableView.register(BookmarkItemCell.self, forCellReuseIdentifier: BookmarkItemCell.reuseIdentifier)
@@ -137,6 +141,7 @@ final class BookmarksViewController: UIViewController, UITableViewDataSource, UI
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        applyAppearance()
         navigationController?.setToolbarHidden(isRoot, animated: animated)
         installBookmarkNavigationMenuIfNeeded()
         reloadBookmarkRows()
@@ -468,7 +473,22 @@ final class BookmarksViewController: UIViewController, UITableViewDataSource, UI
                     self?.showNewFolderEditor()
                 },
             ]),
+            UIMenu(title: "", image: nil, identifier: nil, options: .displayInline, children: [
+                UIAction(title: "Import Bookmarks", image: UIImage(systemName: "square.and.arrow.down")) { [weak self] _ in
+                    self?.confirmBookmarkImport()
+                },
+                UIAction(title: "Export Bookmarks", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
+                    self?.confirmBookmarkExport()
+                },
+            ]),
         ])
+    }
+
+    private func applyAppearance() {
+        view.backgroundColor = BrowserAppearance.groupedBackgroundColor
+        tableView.backgroundColor = BrowserAppearance.groupedBackgroundColor
+        tableView.tintColor = BrowserAppearance.accentColor
+        navigationController?.navigationBar.tintColor = BrowserAppearance.accentColor
     }
     
     private func makeSortMenu() -> UIMenu {
@@ -739,6 +759,157 @@ final class BookmarksViewController: UIViewController, UITableViewDataSource, UI
             items = [flexibleSpace, editButtonItem]
         }
         setToolbarItems(items, animated: animated)
+    }
+
+    // MARK: - Bookmark Transfer
+
+    private func confirmBookmarkExport() {
+        let alert = UIAlertController(
+            title: "Export Bookmarks",
+            message: "This creates a local HTML bookmark file that may include private URLs and titles.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Export", style: .default) { [weak self] _ in
+            self?.exportBookmarks()
+        })
+        present(alert, animated: true)
+    }
+
+    private func exportBookmarks() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            let bookmarks = self.store.allBookmarks()
+            let data = BookmarkHTMLTransfer.exportHTML(bookmarks: bookmarks)
+            let exportURL = FileManager.default.temporaryDirectory.appendingPathComponent(BookmarkHTMLTransfer.fileName)
+
+            do {
+                try data.write(to: exportURL, options: .atomic)
+                DispatchQueue.main.async { [weak self] in
+                    self?.presentExportShareSheet(for: exportURL)
+                }
+            } catch {
+                DispatchQueue.main.async { [weak self] in
+                    self?.presentTransferError(message: "Could not create the bookmark export file.")
+                }
+            }
+        }
+    }
+
+    private func presentExportShareSheet(for url: URL) {
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        controller.popoverPresentationController?.sourceView = view
+        controller.popoverPresentationController?.sourceRect = CGRect(
+            x: view.bounds.midX,
+            y: view.bounds.midY,
+            width: 1,
+            height: 1
+        )
+        present(controller, animated: true)
+    }
+
+    private func confirmBookmarkImport() {
+        let alert = UIAlertController(
+            title: "Import Bookmarks",
+            message: "Choose a Firefox/Netscape-style HTML bookmark file. Existing URLs are skipped.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Choose File", style: .default) { [weak self] _ in
+            self?.presentBookmarkImporter()
+        })
+        present(alert, animated: true)
+    }
+
+    private func presentBookmarkImporter() {
+        documentImportMode = .bookmarks
+        let controller = UIDocumentPickerViewController(
+            documentTypes: ["public.html", "public.text", "com.netscape.bookmark"],
+            in: .import
+        )
+        controller.delegate = self
+        controller.allowsMultipleSelection = false
+        present(controller, animated: true)
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard documentImportMode == .bookmarks,
+              let url = urls.first else {
+            documentImportMode = nil
+            return
+        }
+
+        documentImportMode = nil
+        importBookmarks(from: url)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        documentImportMode = nil
+    }
+
+    private func importBookmarks(from url: URL) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            let didStartAccessing = url.startAccessingSecurityScopedResource()
+            defer {
+                if didStartAccessing {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            guard let data = try? Data(contentsOf: url) else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.presentTransferError(message: "Could not read the selected bookmark file.")
+                }
+                return
+            }
+
+            let importedItems = BookmarkHTMLTransfer.parseBookmarks(from: data)
+            var imported = 0
+            var skipped = 0
+            var seen = Set<URL>()
+
+            for item in importedItems {
+                guard seen.insert(item.url).inserted,
+                      self.store.bookmark(savedFor: item.url) == nil else {
+                    skipped += 1
+                    continue
+                }
+
+                if self.store.addBookmark(title: item.title, url: item.url) != nil {
+                    imported += 1
+                } else {
+                    skipped += 1
+                }
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                self?.reloadBookmarkRows()
+                self?.presentImportSummary(DataImportSummary(imported: imported, skipped: skipped))
+            }
+        }
+    }
+
+    private func presentImportSummary(_ summary: DataImportSummary) {
+        let alert = UIAlertController(
+            title: "Import Complete",
+            message: "Imported \(summary.imported) bookmarks. Skipped \(summary.skipped).",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+
+    private func presentTransferError(message: String) {
+        let alert = UIAlertController(title: "Transfer Failed", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     // MARK: - Navigation

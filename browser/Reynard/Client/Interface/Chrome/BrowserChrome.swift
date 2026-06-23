@@ -359,6 +359,13 @@ final class BrowserChrome: UIView {
     func setSidebarButtonTransition(alpha: CGFloat, hidden: Bool) {
         topToolbar.setSidebarButtonTransition(alpha: alpha, hidden: hidden)
     }
+
+    func applyAppearance() {
+        topToolbar.applyAppearance()
+        bottomToolbar.applyAppearance()
+        addressBar.applyAppearance()
+        tintColor = BrowserAppearance.accentColor
+    }
     
     // MARK: - View Setup
     

@@ -750,6 +750,10 @@ final class TabManagerImplementation: NSObject, TabManager {
         tab.thumbnail = image
         store.persistThumbnail(image, for: tab.id)
     }
+
+    func flushStateForLifecycleEvent() {
+        persistState()
+    }
     
     // MARK: - Session Factory
     
