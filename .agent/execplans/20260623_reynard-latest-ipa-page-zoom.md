@@ -8,7 +8,7 @@ Produce a verified latest-main Reynard IPA from the `lowestprime/reynard-browser
 
 ## Success Criteria
 
-- [ ] The fork is synchronized with or verified against latest upstream `minh-ton/reynard-browser@main`.
+- [x] The fork is synchronized with or verified against latest upstream `minh-ton/reynard-browser@main`.
 - [ ] GitHub Actions workflow `Build Latest Reynard IPA` completes successfully on `main`.
 - [ ] Artifact `Reynard-latest-main-ipa` is uploaded and downloaded locally.
 - [ ] Downloaded artifact contains `Reynard.ipa`.
@@ -73,6 +73,8 @@ Latest inspected workflow failure:
 - [x] Workflow rerun started.
 - [x] Workflow rerun completed with a new WASI runtime failure.
 - [x] Second targeted WASI runtime patch applied.
+- [x] Non-final run confirmed dependencies passed and reached `Build Gecko`.
+- [x] Latest upstream `minh-ton/reynard-browser@main` merged.
 - [ ] IPA artifact downloaded and inspected.
 - [ ] Page Zoom architecture inspected.
 - [ ] Page Zoom implemented.
@@ -85,6 +87,9 @@ Latest inspected workflow failure:
 - Homebrew LLVM 22.1.7 on `macos-26` no longer provides `wasm-ld` under `/opt/homebrew/opt/llvm/bin`; Homebrew prints that LLD is a separate formula.
 - Run `27993600431` proved the explicit `lld` patch worked: `command -v wasm-ld` returned `/opt/homebrew/opt/lld/bin/wasm-ld` and `wasm-ld --version` returned `Homebrew LLD 22.1.7`.
 - The same run exposed the next WASI runtime dependency: `/opt/homebrew/opt/llvm/bin/clang --target=wasm32-unknown-wasi --sysroot=/opt/homebrew/share/wasi-sysroot /tmp/wasm-test.c -o /tmp/wasm-test.wasm` failed with `cannot open ... lib/wasm32-unknown-wasi/libclang_rt.builtins.a: No such file or directory`.
+- Run `27993866717` passed `Install build dependencies`, `Update Gecko source`, `Apply Gecko patches`, `Build idevice FFI`, and `Force Gecko to use Xcode ld64`; it reached `Build Gecko` before being intentionally canceled because the fork had not yet merged latest upstream main.
+- After `git fetch upstream main`, `upstream/main...HEAD` was `9 13`, proving the fork was missing nine upstream commits. The upstream head was `0fcee2c40f8629c50a9481419dfb9184c75c0236` (`Hide tab bar when in iPad 1/3 split screen`).
+- `git merge upstream/main --no-edit` completed without conflicts and produced merge commit `6190269606d3c09e97b70db08a9f85ecaf1d861e`; `git merge-base --is-ancestor upstream/main HEAD` then confirmed upstream is contained in the fork.
 
 ## Decision Log
 
@@ -96,6 +101,10 @@ Latest inspected workflow failure:
   - Reason: The next failed log shows `wasm-ld` is now available but clang lacks WASI Compiler-RT builtins. Homebrew describes `wasi-runtimes` as the Compiler-RT and libc++ runtimes for WASI.
   - Evidence: Run `27993600431`, `Install build dependencies`, `wasm-ld --version` succeeded, then clang failed opening `libclang_rt.builtins.a`.
   - Consequence: The next run is the one further targeted WASI repair allowed before falling back to `--without-wasm-sandboxed-libraries` if WASI still fails.
+- Decision: Cancel run `27993866717` and merge upstream before continuing.
+  - Reason: A successful artifact from that run would not have satisfied the latest-main requirement because upstream/main was not contained in the fork.
+  - Evidence: `git rev-list --left-right --count upstream/main...HEAD` returned `9 13`.
+  - Consequence: The next workflow run must use a merged commit after `6190269606d3c09e97b70db08a9f85ecaf1d861e`.
 
 ## Plan of Work
 
@@ -136,6 +145,11 @@ Additional commands after first rerun:
 ```powershell
 gh run view 27993600431 --repo lowestprime/reynard-browser --log-failed
 gh run view 27993600431 --repo lowestprime/reynard-browser --json databaseId,headSha,headBranch,conclusion,status,url,createdAt,updatedAt,workflowName,jobs
+gh run cancel 27993866717 --repo lowestprime/reynard-browser
+git fetch upstream main
+git merge-base --is-ancestor upstream/main HEAD
+git rev-list --left-right --count upstream/main...HEAD
+git merge upstream/main --no-edit
 ```
 
 ## Validation
