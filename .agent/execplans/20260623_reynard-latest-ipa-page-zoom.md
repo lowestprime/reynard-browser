@@ -132,6 +132,12 @@ Latest inspected workflow failure:
   - Reason: The script needs `MOZ_LINKER` to write durable `.mozconfig`, but Firefox configure rejects the environment variable when it remains set.
   - Evidence: Run `28001837486`, `Build Gecko`, `InvalidOptionError: MOZ_LINKER takes 0 values`.
   - Consequence: The workflow can still set `MOZ_LINKER=ld64`, while `mach build` only sees the supported `--enable-linker=ld64` configure option.
+- Decision: Reuse the Gecko checkpoint from run `28002185987` and repair archive checkpoint inspection only.
+  - Reason: Run `28002185987` completed `Build Gecko checkpoint` and uploaded `gecko-dist-aarch64-apple-ios`; rebuilding Gecko would waste the artifact and reintroduce the slow feedback loop.
+  - Evidence: The archive job downloaded the checkpoint, `engine/firefox/obj-aarch64-apple-ios/dist/bin` existed, `engine/firefox/toolkit/mozapps/extensions/default-theme` existed, and `du -sh engine/firefox/obj-aarch64-apple-ios/dist` reported about `414M`.
+  - Evidence: First-run `sccache` was cold/low-value: restore missed, post-build `sccache -s` showed `Cache hits 0`, `Cache misses 4716`, and the cache directory was about `2.7G`.
+  - Evidence: The archive job then failed after the nonessential diagnostic listing `find engine/firefox/obj-aarch64-apple-ios/dist -maxdepth 2 | head -100` under `set -euo pipefail`.
+  - Consequence: The next action is an archive-only rerun from `run_id=28002185987` after making the diagnostic listing pipefail-safe; Page Zoom remains deferred until the baseline IPA artifact is verified.
 
 ## Build Acceleration Objective
 

@@ -272,7 +272,7 @@ jobs:
           test -d engine/firefox/obj-aarch64-apple-ios/dist/bin
           test -d engine/firefox/toolkit/mozapps/extensions/default-theme
           du -sh engine/firefox/obj-aarch64-apple-ios/dist
-          find engine/firefox/obj-aarch64-apple-ios/dist -maxdepth 2 | head -100
+          find engine/firefox/obj-aarch64-apple-ios/dist -maxdepth 2 -print | sed -n '1,100p'
 
       - name: Build idevice FFI
         shell: zsh {0}
