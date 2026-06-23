@@ -69,9 +69,10 @@ Latest inspected workflow failure:
 - [x] Latest workflow run and failed log inspected.
 - [x] ExecPlan created.
 - [x] First workflow patch applied for explicit Homebrew `lld` and `wasm-ld` lookup.
-- [ ] Workflow fix committed and pushed.
-- [ ] Workflow rerun started.
-- [ ] Workflow rerun completed.
+- [x] Workflow fix committed and pushed.
+- [x] Workflow rerun started.
+- [x] Workflow rerun completed with a new WASI runtime failure.
+- [x] Second targeted WASI runtime patch applied.
 - [ ] IPA artifact downloaded and inspected.
 - [ ] Page Zoom architecture inspected.
 - [ ] Page Zoom implemented.
@@ -82,6 +83,8 @@ Latest inspected workflow failure:
 
 - The latest failed run was still at commit `c0fa94f22fc8022ed632ef877917688578d9705a`, while local `main` has later AGENTS-only commits. The workflow bug remains in the current workflow file.
 - Homebrew LLVM 22.1.7 on `macos-26` no longer provides `wasm-ld` under `/opt/homebrew/opt/llvm/bin`; Homebrew prints that LLD is a separate formula.
+- Run `27993600431` proved the explicit `lld` patch worked: `command -v wasm-ld` returned `/opt/homebrew/opt/lld/bin/wasm-ld` and `wasm-ld --version` returned `Homebrew LLD 22.1.7`.
+- The same run exposed the next WASI runtime dependency: `/opt/homebrew/opt/llvm/bin/clang --target=wasm32-unknown-wasi --sysroot=/opt/homebrew/share/wasi-sysroot /tmp/wasm-test.c -o /tmp/wasm-test.wasm` failed with `cannot open ... lib/wasm32-unknown-wasi/libclang_rt.builtins.a: No such file or directory`.
 
 ## Decision Log
 
@@ -89,6 +92,10 @@ Latest inspected workflow failure:
   - Reason: The failing log proves `wasm-ld` is missing from the LLVM formula path, and Homebrew says to install `lld`.
   - Evidence: Run `27987957678`, `Install build dependencies`, `/opt/homebrew/opt/llvm/bin/wasm-ld: No such file or directory`.
   - Consequence: The workflow keeps Apple clang for iOS/macOS while exposing LLD only to WASM wrapper commands and the WASM link preflight.
+- Decision: Install Homebrew `wasi-runtimes` and pass its resource dir through the WASM wrappers.
+  - Reason: The next failed log shows `wasm-ld` is now available but clang lacks WASI Compiler-RT builtins. Homebrew describes `wasi-runtimes` as the Compiler-RT and libc++ runtimes for WASI.
+  - Evidence: Run `27993600431`, `Install build dependencies`, `wasm-ld --version` succeeded, then clang failed opening `libclang_rt.builtins.a`.
+  - Consequence: The next run is the one further targeted WASI repair allowed before falling back to `--without-wasm-sandboxed-libraries` if WASI still fails.
 
 ## Plan of Work
 
@@ -122,6 +129,13 @@ git push origin main
 gh workflow run "Build Latest Reynard IPA" --repo lowestprime/reynard-browser --ref main
 gh run list --repo lowestprime/reynard-browser --workflow "Build Latest Reynard IPA" --limit 5
 gh run watch <RUN_ID> --repo lowestprime/reynard-browser
+```
+
+Additional commands after first rerun:
+
+```powershell
+gh run view 27993600431 --repo lowestprime/reynard-browser --log-failed
+gh run view 27993600431 --repo lowestprime/reynard-browser --json databaseId,headSha,headBranch,conclusion,status,url,createdAt,updatedAt,workflowName,jobs
 ```
 
 ## Validation

@@ -48,6 +48,7 @@ jobs:
           brew list llvm >/dev/null 2>&1 || brew install llvm
           brew list lld >/dev/null 2>&1 || brew install lld
           brew list wasi-libc >/dev/null 2>&1 || brew install wasi-libc
+          brew list wasi-runtimes >/dev/null 2>&1 || brew install wasi-runtimes
 
           rustup target add aarch64-apple-ios
 
@@ -57,13 +58,13 @@ jobs:
           cat > "$WASI_WRAPPER_DIR/clang" <<'SH'
           #!/usr/bin/env bash
           export PATH="/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/llvm/bin:$PATH"
-          exec /opt/homebrew/opt/llvm/bin/clang "$@"
+          exec /opt/homebrew/opt/llvm/bin/clang -resource-dir=/opt/homebrew/share/wasi-runtimes "$@"
           SH
 
           cat > "$WASI_WRAPPER_DIR/clang++" <<'SH'
           #!/usr/bin/env bash
           export PATH="/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/llvm/bin:$PATH"
-          exec /opt/homebrew/opt/llvm/bin/clang++ "$@"
+          exec /opt/homebrew/opt/llvm/bin/clang++ -resource-dir=/opt/homebrew/share/wasi-runtimes "$@"
           SH
 
           chmod +x "$WASI_WRAPPER_DIR/clang" "$WASI_WRAPPER_DIR/clang++"
@@ -78,13 +79,19 @@ jobs:
           command -v wasm-ld
           wasm-ld --version
           test -d /opt/homebrew/share/wasi-sysroot
+          test -f /opt/homebrew/share/wasi-runtimes/lib/wasm32-unknown-wasi/libclang_rt.builtins.a
           ls -lah /opt/homebrew/share/wasi-sysroot
+          /opt/homebrew/opt/llvm/bin/clang \
+            -resource-dir=/opt/homebrew/share/wasi-runtimes \
+            --target=wasm32-unknown-wasi \
+            --print-resource-dir
 
           cat > /tmp/wasm-test.c <<'C'
           int main(void) { return 0; }
           C
 
           /opt/homebrew/opt/llvm/bin/clang \
+            -resource-dir=/opt/homebrew/share/wasi-runtimes \
             --target=wasm32-unknown-wasi \
             --sysroot=/opt/homebrew/share/wasi-sysroot \
             /tmp/wasm-test.c \
