@@ -9,14 +9,14 @@ Produce a verified latest-main Reynard IPA from the `lowestprime/reynard-browser
 ## Success Criteria
 
 - [x] The fork is synchronized with or verified against latest upstream `minh-ton/reynard-browser@main`.
-- [ ] GitHub Actions workflow `Build Latest Reynard IPA` completes successfully on `main`.
+- [x] GitHub Actions workflow `Build Latest Reynard IPA` completes successfully on `main`.
 - [x] Artifact `Reynard-latest-main-ipa` is uploaded and downloaded locally.
 - [x] Downloaded artifact contains `Reynard.ipa`.
 - [x] IPA contents include `Payload/Reynard.app/Reynard` plus required app extensions.
 - [x] Build identity is post-0.4.0 and not only public build `63836c3`.
-- [ ] Page Zoom supports zoom out, zoom in, reset, displayed percentage, per-site persistence where feasible, and a default/global zoom where feasible.
-- [ ] Page Zoom applies to the active tab without restarting the app.
-- [ ] Relevant local checks and final GitHub Actions build are run and recorded.
+- [x] Page Zoom supports zoom out, zoom in, reset, displayed percentage, per-site persistence where feasible, and a default/global zoom where feasible.
+- [x] Page Zoom applies to the active tab without restarting the app.
+- [x] Relevant local checks and final GitHub Actions build are run and recorded.
 
 ## Current State
 
@@ -61,6 +61,27 @@ Current implementation state:
 - Active-tab changes are applied immediately by sending updated `GeckoSessionSettings` to the selected `GeckoSession`.
 - Durable Gecko source behavior is represented as a root-level patch: `patches/mobile/shared/modules/geckoview/GeckoViewSettings.sys.mjs.patch`. The patch applies `settings.pageZoom` to `browsingContext.fullZoom`.
 - Local Windows validation has confirmed `git diff --check` for tracked changes and `git -C engine/firefox apply --check` for the Gecko patch. Swift/Xcode compilation is deferred to GitHub Actions because this Windows host does not provide `swift` or `xcodebuild`.
+
+## Verified Page Zoom IPA
+
+- Feature commit: `ac7c446aa4a8831579945e4d4cb49a33ce8cf670` (`feat(app): add page zoom controls`).
+- Workflow run: `28038685786`, `https://github.com/lowestprime/reynard-browser/actions/runs/28038685786`.
+- Run result: success in `26m51s`.
+- Build job: `Build Gecko checkpoint`, job ID `82998916130`, success in `20m42s`.
+- Archive job: `Archive IPA from Gecko checkpoint`, job ID `83003479854`, success in `5m52s`.
+- Gecko checkpoint artifact: `gecko-dist-aarch64-apple-ios`, artifact ID `7826642917`, size `124047999` bytes, downloaded by the archive job with SHA-256 `ec43c3d1c73cd81329a8f1a8cb27b7a4722c5e14a7649f036a3867f72a4ef0fa`.
+- IPA artifact: `Reynard-latest-main-ipa`, artifact ID `7826779137`, uploaded artifact zip size `107718673` bytes, uploaded artifact zip SHA-256 `4b75cd47758365e733580b2829234c75af61432d29c451678da1cab718b3be48`.
+- Local downloaded IPA path: `C:\Users\Cooper\Downloads\Reynard-latest-main-28038685786\Reynard.ipa`.
+- Local IPA size: `109612923` bytes.
+- Local IPA SHA-256: `5ee4c3d7259ca22c7b1ce61c072da2a67c328b32137c24e58c02adae9c573291`.
+- Local IPA verification with `unzip -Z1` found `3032` entries and confirmed:
+  - `Payload/Reynard.app/Reynard`
+  - `Payload/Reynard.app/PlugIns/Reynard Helper.appex/Info.plist`
+  - `Payload/Reynard.app/PlugIns/OpenIn.appex/Info.plist`
+- Workflow verification also found the main app binary, `Reynard Helper.appex`, and `OpenIn.appex`.
+- Build identity evidence: archive log showed `CURRENT_BUILD = ac7c446` and `CURRENT_PROJECT_VERSION=ac7c446`, so the IPA is a post-0.4.0 build and not only public build `63836c3`.
+- Acceleration evidence: `actions/cache/restore` restored a `2.44GB` sccache archive from run `28002185987`; `Build Gecko` reported `4645` cache hits, `71` misses, and `98.49%` hit rate. The `.sccache` directory was about `2.7G`; sccache reported `3 GiB` used with an `8 GiB` max.
+- Checkpoint evidence: `engine/firefox/obj-aarch64-apple-ios/dist` was `299M` and uploaded as the `gecko-dist-aarch64-apple-ios` artifact before archive work began.
 
 Recent commits include:
 
@@ -117,8 +138,8 @@ Latest inspected workflow failure:
 - [x] IPA artifact downloaded and inspected.
 - [x] Page Zoom architecture inspected.
 - [x] Page Zoom implemented.
-- [ ] Final Page Zoom build and artifact verified.
-- [ ] Final outcome recorded.
+- [x] Final Page Zoom build and artifact verified.
+- [x] Final outcome recorded.
 
 ## Surprises & Discoveries
 
@@ -136,6 +157,7 @@ Latest inspected workflow failure:
 - Run `28001189594` was started from commit `49556ae` but was cancelled at about 10m27s before entering a long Gecko rebuild. This preserves GitHub runner time while acceleration/checkpointing is added.
 - Run `28001837486` validated the new workflow shape through dependency install, `actions/cache/restore`, Gecko source checkout, patches, idevice FFI, and ld64 detection patching. It failed quickly in `Build Gecko` configure before a long rebuild.
 - The first real error in run `28001837486` was `mozbuild.configure.options.InvalidOptionError: MOZ_LINKER takes 0 values`. The generated `.mozconfig` already had `--enable-linker=ld64`; the problem was leaving the `MOZ_LINKER=ld64` environment variable visible to Firefox configure.
+- Run `28038685786` validated the final Page Zoom build through the full split workflow. Gecko completed in about nine minutes after restoring sccache, the Gecko dist checkpoint was uploaded, the archive job consumed that checkpoint, and `Reynard-latest-main-ipa` uploaded successfully.
 
 ## Decision Log
 
@@ -304,8 +326,8 @@ If later app archive or IPA creation fails, retrieve `Reynard-build-debug` and i
 
 ## Outcomes & Retrospective
 
-- What changed:
-- What passed:
-- What failed or remains unknown:
-- Artifact/run/commit identifiers:
-- Recommended next action:
+- What changed: the workflow now uses sccache restore/save and a Gecko dist checkpoint; Reynard now has Page Zoom controls in the address-bar page menu, default zoom settings, per-host zoom persistence, and a GeckoView patch that applies `pageZoom` through `browsingContext.fullZoom`.
+- What passed: local static checks, Gecko patch application check, the final `Build Latest Reynard IPA` GitHub Actions workflow, artifact upload, artifact download, IPA hash verification, and IPA payload checks.
+- What failed or remains unknown: no current build failure. Physical iOS 26.6 / iPhone 15 Pro Max JIT/TXM behavior and hands-on Page Zoom UX remain device checks.
+- Artifact/run/commit identifiers: feature commit `ac7c446aa4a8831579945e4d4cb49a33ce8cf670`; successful run `28038685786`; IPA artifact `Reynard-latest-main-ipa` ID `7826779137`; local IPA `C:\Users\Cooper\Downloads\Reynard-latest-main-28038685786\Reynard.ipa`.
+- Recommended next action: install the verified IPA on the target device and manually check JIT/TXM behavior plus Page Zoom controls on several sites.
