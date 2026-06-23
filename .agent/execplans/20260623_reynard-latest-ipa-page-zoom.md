@@ -291,10 +291,10 @@ Progress for this continuation:
 - [x] Address bar autocomplete implemented.
 - [x] OLED black theme and accent customization implemented.
 - [x] Local static checks passed.
-- [ ] Archive-only workflow run completed using an existing Gecko checkpoint, or exact evidence recorded for why a full checkpoint run was required.
-- [ ] New IPA downloaded and verified.
-- [ ] New fork prerelease published without overwriting `reynard-page-zoom-2026-06-23`.
-- [ ] Upstream PR `#153` updated and confirmed open/mergeable where possible.
+- [x] Archive-only workflow run completed using an existing Gecko checkpoint, or exact evidence recorded for why a full checkpoint run was required.
+- [x] New IPA downloaded and verified.
+- [x] New fork prerelease published without overwriting `reynard-page-zoom-2026-06-23`.
+- [x] Upstream PR `#153` updated and confirmed open/mergeable where possible.
 
 Implemented native-only changes in this continuation:
 
@@ -313,6 +313,33 @@ Archive-only validation attempt:
 - First real source error: `ContentView.swift:184` attempted to call `min(max(bottomRatio, 0), 1)` where `GeckoSession.focusedInputBottomRatio()` returns `CGFloat?`.
 - Fix: handle `nil` focused-input geometry by clearing/resetting focused-input relocation, then clamp only non-optional ratios.
 - Repeated local validation after the fix: `git diff --check`, `bash -n tools/development/build-gecko.sh`, `bash -n tools/release/build-app.sh`, and `bash -n browser/Scripts/AddGecko.sh` all returned zero.
+
+Final feature-complete UX IPA validation:
+
+- Final commit: `240928640a1adbab8f9353cc07f35563f10a922b` (`fix(app): handle missing focused input metrics`).
+- Successful archive-only workflow run: `28058553866`, `https://github.com/lowestprime/reynard-browser/actions/runs/28058553866`.
+- Run result: success in `4m26s`.
+- Reused Gecko checkpoint: `gecko-dist-aarch64-apple-ios` from run `28038685786`.
+- Archive job source checkout: `240928640a1adbab8f9353cc07f35563f10a922b`.
+- Uploaded artifact: `Reynard-latest-main-ipa`.
+- Local downloaded IPA: `C:\Users\Cooper\Downloads\Reynard-latest-main-28058553866\Reynard.ipa`.
+- Local IPA size: `109647473` bytes.
+- Local IPA SHA-256: `6c73eb30b8307f82768ad13a20b169ea2ab334e5fea8d37d731d7b2b47593961`.
+- `unzip -tq` passed with no compressed-data errors.
+- ZIP inspection found `3032` entries and `0` duplicate paths.
+- Required packaged entries were present:
+  - `Payload/Reynard.app/Reynard`
+  - `Payload/Reynard.app/PlugIns/Reynard Helper.appex/Info.plist`
+  - `Payload/Reynard.app/PlugIns/OpenIn.appex/Info.plist`
+  - `Payload/Reynard.app/Frameworks/GeckoView.framework/GeckoView`
+- `CFBundleVersion` was `2409286` for the main app, `Reynard Helper.appex`, and `OpenIn.appex`; `CFBundleShortVersionString` was `0.4.0`.
+- Main app, helper extension, OpenIn extension, and GeckoView binaries had Mach-O 64-bit little-endian headers.
+- Feature string scan found `Page Zoom`, `Zoom Out`, `Zoom In`, `Reset`, `OLED Black`, `Search Suggestions`, `Local Suggestions`, `Import Bookmarks`, `Export Bookmarks`, `Site override`, `Firefox/Netscape`, and `Reynard-History.csv`. `Import History` and `Export History` did not appear as plain UTF-8/UTF-16 byte strings even though the history CSV code path compiled and the history CSV filename was present.
+- New fork prerelease: `https://github.com/lowestprime/reynard-browser/releases/tag/reynard-feature-complete-ux-2026-06-23`.
+- Release assets:
+  - `Reynard.ipa`, size `109647473`, digest `sha256:6c73eb30b8307f82768ad13a20b169ea2ab334e5fea8d37d731d7b2b47593961`.
+  - `Reynard.ipa.sha256`, size `77`, digest `sha256:55dfcce7e25e8b0df1adf1b4467c1c18ca19cd0a2301a31c02466148e2f95fff`.
+- Upstream PR `https://github.com/minh-ton/reynard-browser/pull/153` remains open, non-draft, and mergeable with head `240928640a1adbab8f9353cc07f35563f10a922b`.
 
 Build strategy:
 
