@@ -10,10 +10,10 @@ Produce a verified latest-main Reynard IPA from the `lowestprime/reynard-browser
 
 - [x] The fork is synchronized with or verified against latest upstream `minh-ton/reynard-browser@main`.
 - [ ] GitHub Actions workflow `Build Latest Reynard IPA` completes successfully on `main`.
-- [ ] Artifact `Reynard-latest-main-ipa` is uploaded and downloaded locally.
-- [ ] Downloaded artifact contains `Reynard.ipa`.
-- [ ] IPA contents include `Payload/Reynard.app/Reynard` plus required app extensions.
-- [ ] Build identity is post-0.4.0 and not only public build `63836c3`.
+- [x] Artifact `Reynard-latest-main-ipa` is uploaded and downloaded locally.
+- [x] Downloaded artifact contains `Reynard.ipa`.
+- [x] IPA contents include `Payload/Reynard.app/Reynard` plus required app extensions.
+- [x] Build identity is post-0.4.0 and not only public build `63836c3`.
 - [ ] Page Zoom supports zoom out, zoom in, reset, displayed percentage, per-site persistence where feasible, and a default/global zoom where feasible.
 - [ ] Page Zoom applies to the active tab without restarting the app.
 - [ ] Relevant local checks and final GitHub Actions build are run and recorded.
@@ -30,6 +30,24 @@ Initial `git status --short --branch`:
 ## main...origin/main
 ?? .codex/
 ```
+
+## Verified Baseline IPA
+
+- Patch commit: `5f2bfd48b5611b3601c0b2ff6db040b7d5320e57` (`ci: make Gecko checkpoint inspection pipefail-safe`).
+- Archive-only workflow run: `28036622785`, `https://github.com/lowestprime/reynard-browser/actions/runs/28036622785`.
+- Archive-only run result: success in `7m15s`.
+- Archive job source checkout: `5f2bfd48b5611b3601c0b2ff6db040b7d5320e57`.
+- Reused Gecko checkpoint: `gecko-dist-aarch64-apple-ios` from run `28002185987`.
+- Uploaded artifact: `Reynard-latest-main-ipa`.
+- Local downloaded artifact path: `C:\Users\Cooper\Downloads\Reynard-latest-main-28036622785\Reynard.ipa`.
+- Workflow verification: `dist/Reynard.ipa` existed, was about `105M`, and had SHA-256 `a62f30094cdafe43e426823e961b0d2b98ed59e4f418de8ba3f9265c703b9aab`.
+- Local verification command: `unzip -Z1 C:\Users\Cooper\Downloads\Reynard-latest-main-28036622785\Reynard.ipa`.
+- Verified IPA entries:
+  - `Payload/Reynard.app/Reynard`
+  - `Payload/Reynard.app/PlugIns/Reynard Helper.appex/Info.plist`
+  - `Payload/Reynard.app/PlugIns/OpenIn.appex/Info.plist`
+- Build identity evidence: archive log showed `CURRENT_BUILD=5f2bfd4` and `CURRENT_PROJECT_VERSION=5f2bfd4`, so this is a post-0.4.0 build identity, not only public build `63836c3`.
+- Page Zoom can begin from this verified baseline IPA. The full split `Build Latest Reynard IPA` workflow still has not been rerun after the pipefail-safe patch because the user explicitly prioritized archive-only reuse of the existing Gecko checkpoint.
 
 Recent commits include:
 
