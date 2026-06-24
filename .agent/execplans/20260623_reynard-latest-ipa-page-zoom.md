@@ -475,6 +475,34 @@ Implementation plan:
 - Update `AppearancePreferencesViewController` to show preset rows plus a Custom row, present the system color picker where available, present a hex entry alert, and reload immediately after custom changes.
 - Keep this native-only and validate with the archive-only workflow using Gecko checkpoint run `28038685786`.
 
+Implementation outcome:
+
+- Custom accent app-code commit: `e3c2624e4b9628e2f042aebd8adeb22012779a31` (`feat(app): add custom accent colors`).
+- Files changed:
+  - `browser/Reynard/Client/Interface/Appearance/BrowserAppearance.swift`
+  - `browser/Reynard/Client/Preferences/BrowserPreferences.swift`
+  - `browser/Reynard/Client/Interface/Library/Settings/Sections/General/Appearance/AppearancePreferencesViewController.swift`
+- Local validation:
+  - `git diff --check` passed.
+  - `bash -n tools/development/build-gecko.sh` passed.
+  - `bash -n tools/release/build-app.sh` passed.
+  - `bash -n browser/Scripts/AddGecko.sh` passed.
+- Archive-only workflow run: `28080748345`, `https://github.com/lowestprime/reynard-browser/actions/runs/28080748345`.
+- Run result: success in `7m37s`.
+- Reused Gecko checkpoint: `gecko-dist-aarch64-apple-ios` from run `28038685786`; no full Gecko rebuild was triggered.
+- Uploaded artifact: `Reynard-latest-main-ipa`.
+- Local downloaded IPA: `C:\Users\Cooper\Downloads\Reynard-latest-main-28080748345\Reynard.ipa`.
+- Local IPA size: `109652723` bytes.
+- Local IPA SHA-256: `c53caab3fe6d857b7c9a0328d70290b0df2e35f707ec869505853cbe82dcae46`.
+- `unzip -tq` passed with no compressed-data errors.
+- ZIP/plist/Mach-O inspection found `3032` entries, `0` duplicate paths, required app/extensions/GeckoView entries, `CFBundleVersion` `e3c2624` for the main app and extensions, and arm64 Mach-O headers.
+- Marker scan found `Custom`, `Custom Accent`, `Custom Accent Hex`, `Choose Custom Color`, `#RRGGBB`, `Invalid Accent Color`, all preset accent names, `customAccent`, `AppearanceSettings`, `OLED Black`, and `Page Zoom`.
+- New fork prerelease: `https://github.com/lowestprime/reynard-browser/releases/tag/reynard-custom-accent-color-2026-06-24`.
+- Release assets:
+  - `Reynard.ipa`, size `109652723`, digest `sha256:c53caab3fe6d857b7c9a0328d70290b0df2e35f707ec869505853cbe82dcae46`.
+  - `Reynard.ipa.sha256`, size `77`, digest `sha256:bdb475a409e2dfdbdba2e6feafb7c6594eb57d5d07255f6fc03cb55a20b495f8`.
+- Remaining manual validation: install the IPA on iPhone and check Appearance > Accent presets plus Custom, picker, hex entry, persistence, theme coverage, Page Zoom, and the keyboard fix.
+
 ## Plan of Work
 
 First repair `.github/workflows/build-latest-reynard-ipa.yml` so the dependency step installs `lld`, prepends `/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/llvm/bin` for WASM-only wrapper commands, uses `command -v wasm-ld`, and validates a real WASM link using the Homebrew WASI sysroot. Commit, push, trigger the workflow, and inspect the result.
