@@ -45,7 +45,12 @@ final class OverlayContentView: UIView {
     // MARK: - Configuration
     
     private func configureAppearance() {
-        backgroundColor = .systemBackground
+        applyAppearance()
+    }
+
+    func applyAppearance() {
+        backgroundColor = BrowserAppearance.backgroundColor
+        tintColor = BrowserAppearance.accentColor
     }
     
     private func configureHierarchy() {

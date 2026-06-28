@@ -18,13 +18,17 @@ final class CompatibilityPreferencesViewController: SettingsTableViewController 
     
     private enum Row: CaseIterable {
         case useAndroidUserAgent
+        case googleDocsDesktopCompatibility
         case userAgentOverrides
     }
     
     private let androidUserAgentSwitch = UISwitch()
+    private let googleDocsDesktopCompatibilitySwitch = UISwitch()
     
     private var displayedRows: [Row] {
-        return Prefs.CompatibilitySettings.useAndroidUserAgent ? [.useAndroidUserAgent] : Row.allCases
+        return Prefs.CompatibilitySettings.useAndroidUserAgent
+        ? [.useAndroidUserAgent, .googleDocsDesktopCompatibility]
+        : Row.allCases
     }
     
     init() {
@@ -77,6 +81,14 @@ final class CompatibilityPreferencesViewController: SettingsTableViewController 
             cell.selectionStyle = .none
             cell.accessoryView = androidUserAgentSwitch
             return cell
+        case .googleDocsDesktopCompatibility:
+            let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
+            cell.textLabel?.text = "Use desktop compatibility for Google Docs"
+            cell.detailTextLabel?.text = "Applies a desktop Firefox profile only on docs.google.com"
+            cell.detailTextLabel?.numberOfLines = 0
+            cell.selectionStyle = .none
+            cell.accessoryView = googleDocsDesktopCompatibilitySwitch
+            return cell
         case .userAgentOverrides:
             let cell = UITableViewCell(style: .default, reuseIdentifier: nil)
             cell.textLabel?.text = "User Agent Overrides"
@@ -117,10 +129,16 @@ final class CompatibilityPreferencesViewController: SettingsTableViewController 
     
     private func refreshDisplayedState() {
         androidUserAgentSwitch.isOn = Prefs.CompatibilitySettings.useAndroidUserAgent
+        googleDocsDesktopCompatibilitySwitch.isOn = Prefs.CompatibilitySettings.useGoogleDocsDesktopCompatibility
     }
     
     private func configureSwitch() {
         androidUserAgentSwitch.addTarget(self, action: #selector(applyAndroidUserAgentPreference), for: .valueChanged)
+        googleDocsDesktopCompatibilitySwitch.addTarget(
+            self,
+            action: #selector(applyGoogleDocsDesktopCompatibilityPreference),
+            for: .valueChanged
+        )
     }
     
     @objc private func applyAndroidUserAgentPreference() {
@@ -146,5 +164,9 @@ final class CompatibilityPreferencesViewController: SettingsTableViewController 
             footer.textLabel?.text = sectionText(for: section).footerTitle
             footer.sizeToFit()
         }
+    }
+
+    @objc private func applyGoogleDocsDesktopCompatibilityPreference() {
+        Prefs.CompatibilitySettings.useGoogleDocsDesktopCompatibility = googleDocsDesktopCompatibilitySwitch.isOn
     }
 }

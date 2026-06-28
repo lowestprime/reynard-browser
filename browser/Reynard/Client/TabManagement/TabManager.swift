@@ -42,6 +42,11 @@ protocol TabManager: AnyObject {
     func updateThumbnail(_ image: UIImage?, forTabAt index: Int, mode: TabMode)
     @discardableResult
     func changeWebsiteModeForSelectedTab() -> Bool
+    func flushStateForLifecycleEvent()
+    @discardableResult
+    func recoverSelectedTabForForeground() -> Bool
+    @discardableResult
+    func rebuildSelectedTabSessionForForeground() -> Bool
 }
 
 enum TabManagerUpdateReason {

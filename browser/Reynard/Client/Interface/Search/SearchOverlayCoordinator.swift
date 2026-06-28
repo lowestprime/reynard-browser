@@ -278,11 +278,12 @@ final class SearchOverlayCoordinator {
     }
     
     private func shouldShowSearchSuggestions(in tabMode: TabMode?) -> Bool {
-        guard Prefs.SearchSettings.showSearchSuggestions else {
-            return false
-        }
-        
-        return tabMode != .private || Prefs.SearchSettings.showSearchSuggestionsInPrivateBrowsing
+        let hasLocalSources = Prefs.SearchSettings.searchBookmarks
+        || Prefs.SearchSettings.searchOpenedTabs
+        || (Prefs.SearchSettings.searchBrowsingHistory && tabMode != .private)
+        let hasRemoteSource = Prefs.SearchSettings.showSearchSuggestions
+        && (tabMode != .private || Prefs.SearchSettings.showSearchSuggestionsInPrivateBrowsing)
+        return hasLocalSources || hasRemoteSource
     }
 }
 

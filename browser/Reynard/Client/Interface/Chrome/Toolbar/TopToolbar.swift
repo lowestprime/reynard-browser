@@ -238,6 +238,20 @@ final class TopToolbar: UIView {
         sidebarButton.alpha = alpha
         sidebarButton.isHidden = hidden
     }
+
+    func applyAppearance() {
+        backgroundColor = BrowserAppearance.toolbarBackgroundColor
+        [
+            sidebarButton,
+            backButton,
+            forwardButton,
+            libraryButton,
+            downloadButton,
+            shareButton,
+            newTabButton,
+            tabOverviewButton,
+        ].forEach { $0.applyAppearance() }
+    }
     
     // MARK: - Action Wiring
     
@@ -254,7 +268,7 @@ final class TopToolbar: UIView {
     
     private func configureAppearance() {
         translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = .systemGray6
+        applyAppearance()
     }
     
     private func configureHierarchy() {

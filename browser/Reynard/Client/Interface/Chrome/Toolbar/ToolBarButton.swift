@@ -114,12 +114,18 @@ final class ToolbarButton: UIButton {
         downloadProgressFillWidthConstraint.constant = UX.downloadProgressTrackWidth * progress
         accessibilityLabel = "Downloads"
     }
+
+    func applyAppearance() {
+        tintColor = BrowserAppearance.accentColor
+        downloadIconView.tintColor = BrowserAppearance.accentColor
+        downloadProgressFillView.backgroundColor = BrowserAppearance.accentColor
+    }
     
     // MARK: - View Setup
     
     private func configureAppearance() {
         translatesAutoresizingMaskIntoConstraints = false
-        tintColor = .label
+        tintColor = BrowserAppearance.accentColor
         layer.cornerRadius = UX.toolbarButtonCornerRadius
         layer.cornerCurve = .continuous
     }

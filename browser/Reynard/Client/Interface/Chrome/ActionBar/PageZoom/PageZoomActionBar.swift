@@ -9,7 +9,7 @@ import UIKit
 
 final class PageZoomActionBar: UIView {
     private enum UX {
-        static let backgroundHeight: CGFloat = 62
+        static let backgroundHeight: CGFloat = 94
         static let controlsHeight: CGFloat = 38
         static let controlsWidth: CGFloat = 184
         static let controlButtonWidth: CGFloat = 55
@@ -18,6 +18,8 @@ final class PageZoomActionBar: UIView {
         static let closeButtonSize: CGFloat = 28
         static let closeButtonCornerRadius: CGFloat = 14
         static let horizontalInset: CGFloat = 13
+        static let sliderHorizontalInset: CGFloat = 24
+        static let sliderBottomInset: CGFloat = 7
         static let percentFontSize: CGFloat = 16
         static let controlSymbolPointSize: CGFloat = 14
         static let closeSymbolPointSize: CGFloat = 10
@@ -35,6 +37,7 @@ final class PageZoomActionBar: UIView {
     var onZoomOut: (() -> Void)?
     var onZoomIn: (() -> Void)?
     var onReset: (() -> Void)?
+    var onZoomLevelChange: ((Int) -> Void)?
     var onClose: (() -> Void)?
     
     private(set) var zoomLevel = Prefs.AppearanceSettings.defaultPageZoomLevel
@@ -117,6 +120,17 @@ final class PageZoomActionBar: UIView {
     
     private let leadingSeparator = PageZoomActionBar.makeSeparator()
     private let trailingSeparator = PageZoomActionBar.makeSeparator()
+
+    private lazy var zoomSlider: UISlider = {
+        let slider = UISlider()
+        slider.translatesAutoresizingMaskIntoConstraints = false
+        slider.minimumValue = 0
+        slider.maximumValue = Float(max(PageZoomActionBar.zoomLevels.count - 1, 0))
+        slider.isContinuous = true
+        slider.accessibilityLabel = "Page Zoom"
+        slider.addTarget(self, action: #selector(zoomSliderChanged), for: .valueChanged)
+        return slider
+    }()
     
     // MARK: - Lifecycle
     
@@ -125,6 +139,7 @@ final class PageZoomActionBar: UIView {
         configureAppearance()
         configureHierarchy()
         configureConstraints()
+        applyAppearance()
         updateShadowColor()
         updateBorderColor()
         setZoomLevel(zoomLevel)
@@ -165,6 +180,10 @@ final class PageZoomActionBar: UIView {
         zoomInButton.isEnabled = zoomLevel < PageZoomActionBar.zoomLevels.last!
         zoomOutButton.alpha = zoomOutButton.isEnabled ? 1 : UX.disabledAlpha
         zoomInButton.alpha = zoomInButton.isEnabled ? 1 : UX.disabledAlpha
+        if let index = PageZoomActionBar.zoomLevels.firstIndex(of: zoomLevel) {
+            zoomSlider.setValue(Float(index), animated: false)
+        }
+        zoomSlider.accessibilityValue = PageZoomLevels.displayText(for: zoomLevel)
     }
     
     func nextZoomLevel() -> Int {
@@ -194,6 +213,25 @@ final class PageZoomActionBar: UIView {
     @objc private func resetTapped() {
         onReset?()
     }
+
+    func applyAppearance() {
+        zoomOutButton.tintColor = BrowserAppearance.accentColor
+        zoomInButton.tintColor = BrowserAppearance.accentColor
+        closeButton.tintColor = BrowserAppearance.accentColor
+        zoomSlider.minimumTrackTintColor = BrowserAppearance.accentColor
+        tintColor = BrowserAppearance.accentColor
+    }
+
+    @objc private func zoomSliderChanged() {
+        let index = min(
+            max(Int(zoomSlider.value.rounded()), 0),
+            PageZoomActionBar.zoomLevels.count - 1
+        )
+        zoomSlider.setValue(Float(index), animated: false)
+        let level = PageZoomActionBar.zoomLevels[index]
+        guard level != zoomLevel else { return }
+        onZoomLevelChange?(level)
+    }
     
     @objc private func closeTapped() {
         onClose?()
@@ -210,6 +248,7 @@ final class PageZoomActionBar: UIView {
         addSubview(backgroundView)
         addSubview(controlsShadowView)
         addSubview(closeShadowView)
+        addSubview(zoomSlider)
         controlsShadowView.addSubview(controlsBackground)
         closeShadowView.addSubview(closeBackground)
         closeShadowView.addSubview(closeButton)
@@ -228,7 +267,7 @@ final class PageZoomActionBar: UIView {
             backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
             
             controlsShadowView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            controlsShadowView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            controlsShadowView.topAnchor.constraint(equalTo: topAnchor, constant: 8),
             controlsShadowView.widthAnchor.constraint(equalToConstant: UX.controlsWidth),
             controlsShadowView.heightAnchor.constraint(equalToConstant: UX.controlsHeight),
             
@@ -263,7 +302,7 @@ final class PageZoomActionBar: UIView {
             zoomInButton.widthAnchor.constraint(equalToConstant: UX.controlButtonWidth),
             
             closeShadowView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -UX.horizontalInset),
-            closeShadowView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            closeShadowView.centerYAnchor.constraint(equalTo: controlsShadowView.centerYAnchor),
             closeShadowView.widthAnchor.constraint(equalToConstant: UX.closeButtonSize),
             closeShadowView.heightAnchor.constraint(equalToConstant: UX.closeButtonSize),
             
@@ -276,6 +315,10 @@ final class PageZoomActionBar: UIView {
             closeButton.leadingAnchor.constraint(equalTo: closeShadowView.leadingAnchor),
             closeButton.trailingAnchor.constraint(equalTo: closeShadowView.trailingAnchor),
             closeButton.bottomAnchor.constraint(equalTo: closeShadowView.bottomAnchor),
+
+            zoomSlider.leadingAnchor.constraint(equalTo: leadingAnchor, constant: UX.sliderHorizontalInset),
+            zoomSlider.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -UX.sliderHorizontalInset),
+            zoomSlider.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -UX.sliderBottomInset),
         ])
     }
     

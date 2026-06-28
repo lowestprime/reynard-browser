@@ -31,7 +31,7 @@ final class WebsiteModeSettingManager {
             for: url,
             prefersDesktopMode: prefersDesktopMode
         )
-        let usesDesktopMode = prefersDesktopMode && !userAgent.forcesMobileMode
+        let usesDesktopMode = userAgent.forcesDesktopMode || (prefersDesktopMode && !userAgent.forcesMobileMode)
         let mode = usesDesktopMode ? BrowsingMode.desktop : BrowsingMode.mobile
         return WebsiteModeSetting(
             userAgentOverride: userAgent.override,
@@ -41,10 +41,16 @@ final class WebsiteModeSettingManager {
     }
     
     func isDesktopMode(for url: String, tabID: UUID) -> Bool? {
+        guard !userAgentPolicy.usesGoogleDocsDesktopCompatibility(for: url) else {
+            return nil
+        }
         return websiteMode.isDesktopMode(for: url, tabID: tabID)
     }
     
     func toggleWebsiteMode(for url: String, tabID: UUID) -> WebsiteModeAction? {
+        guard !userAgentPolicy.usesGoogleDocsDesktopCompatibility(for: url) else {
+            return nil
+        }
         return websiteMode.toggle(for: url, tabID: tabID)
     }
     

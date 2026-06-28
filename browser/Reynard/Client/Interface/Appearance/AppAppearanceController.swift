@@ -14,6 +14,9 @@ enum AppAppearanceController {
             .flatMap(\.windows)
             .forEach { window in
                 window.overrideUserInterfaceStyle = userInterfaceStyle(for: appearance)
+                window.backgroundColor = BrowserAppearance.backgroundColor
+                window.tintColor = BrowserAppearance.accentColor
+                window.rootViewController?.view.tintColor = BrowserAppearance.accentColor
             }
     }
     
@@ -23,7 +26,7 @@ enum AppAppearanceController {
             return .unspecified
         case .light:
             return .light
-        case .dark:
+        case .dark, .oledBlack:
             return .dark
         }
     }

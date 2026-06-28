@@ -41,8 +41,8 @@ final class BrowserPreferences {
             key("SearchSettings", "searchEngine"): SearchEngine.google.rawValue,
             key("SearchSettings", "customSearchTemplate"): "",
             key("SearchSettings", "searchSuggestionProvider"): SearchCompletion.Provider.google.rawValue,
-            key("SearchSettings", "showSearchSuggestions"): true,
-            key("SearchSettings", "showSearchSuggestionsInPrivateBrowsing"): true,
+            key("SearchSettings", "showSearchSuggestions"): false,
+            key("SearchSettings", "showSearchSuggestionsInPrivateBrowsing"): false,
             key("SearchSettings", "searchBrowsingHistory"): true,
             key("SearchSettings", "searchBookmarks"): true,
             key("SearchSettings", "searchOpenedTabs"): true,
@@ -53,6 +53,7 @@ final class BrowserPreferences {
             // Compatibility
             key("CompatibilitySettings", "androidUserAgentDomains"): [],
             key("CompatibilitySettings", "useAndroidUserAgent"): true,
+            key("CompatibilitySettings", "useGoogleDocsDesktopCompatibility"): true,
             
             // Browsing
             key("BrowsingSettings", "requestDesktopWebsite"): UIDevice.current.userInterfaceIdiom == .pad,
@@ -81,6 +82,8 @@ final class BrowserPreferences {
             key("AppearanceSettings", "showsFullWebsiteAddress"): false,
             key("AppearanceSettings", "showsLandscapeTabBar"): true,
             key("AppearanceSettings", "defaultPageZoomLevel"): PageZoomLevels.defaultLevel,
+            key("AppearanceSettings", "accentColor"): BrowserAccentColor.highContrast.rawValue,
+            key("AppearanceSettings", "customAccentHex"): BrowserAccentColor.defaultCustomHex,
             
             // Bookmarks
             key("BookmarkSettings", "placeFoldersOnTop"): true,
@@ -597,6 +600,15 @@ final class BrowserPreferences {
                 prefs.set(newValue, forSetting: "CompatibilitySettings", key: "useAndroidUserAgent")
             }
         }
+
+        static var useGoogleDocsDesktopCompatibility: Bool {
+            get {
+                prefs.bool(forSetting: "CompatibilitySettings", key: "useGoogleDocsDesktopCompatibility")
+            }
+            set {
+                prefs.set(newValue, forSetting: "CompatibilitySettings", key: "useGoogleDocsDesktopCompatibility")
+            }
+        }
     }
     
     // MARK: - Appearance
@@ -608,6 +620,7 @@ final class BrowserPreferences {
             }
             set {
                 prefs.set(newValue.rawValue, forSetting: "AppearanceSettings", key: "appAppearance")
+                NotificationCenter.default.post(name: .appearancePreferencesDidChange, object: nil)
             }
         }
         
@@ -653,6 +666,40 @@ final class BrowserPreferences {
                 }
                 prefs.set(newValue, forSetting: "AppearanceSettings", key: "defaultPageZoomLevel")
             }
+        }
+
+        static var accentColor: BrowserAccentColor {
+            get {
+                let rawValue = prefs.string(forSetting: "AppearanceSettings", key: "accentColor")
+                ?? BrowserAccentColor.highContrast.rawValue
+                return BrowserAccentColor(rawValue: rawValue) ?? .highContrast
+            }
+            set {
+                prefs.set(newValue.rawValue, forSetting: "AppearanceSettings", key: "accentColor")
+                NotificationCenter.default.post(name: .appearancePreferencesDidChange, object: nil)
+            }
+        }
+
+        static var customAccentHex: String {
+            get {
+                let rawValue = prefs.string(forSetting: "AppearanceSettings", key: "customAccentHex")
+                ?? BrowserAccentColor.defaultCustomHex
+                return BrowserAccentColor.normalizedCustomHex(rawValue) ?? BrowserAccentColor.defaultCustomHex
+            }
+            set {
+                guard let normalizedHex = BrowserAccentColor.normalizedCustomHex(newValue) else {
+                    return
+                }
+
+                prefs.set(normalizedHex, forSetting: "AppearanceSettings", key: "customAccentHex")
+                NotificationCenter.default.post(name: .appearancePreferencesDidChange, object: nil)
+            }
+        }
+
+        static var customAccentColor: UIColor {
+            UIColor(hexString: customAccentHex)
+            ?? UIColor(hexString: BrowserAccentColor.defaultCustomHex)
+            ?? .systemBlue
         }
     }
     

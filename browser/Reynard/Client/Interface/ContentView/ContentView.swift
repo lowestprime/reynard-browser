@@ -13,6 +13,7 @@ final class ContentView: UIView {
         static let phoneSearchFocusedBottomInset: CGFloat = 94
         static let focusedInputBottomClearance: CGFloat = 12
         static let focusedInputOffsetThreshold: CGFloat = 0.5
+        static let maximumFocusedInputOffsetRatio: CGFloat = 0.45
     }
     
     struct State: Equatable {
@@ -40,6 +41,7 @@ final class ContentView: UIView {
     private var session: GeckoSession?
     private var focusedInputTask: Task<Void, Never>?
     private var inputBottomRatio: CGFloat?
+    private var pageViewportBottomInset: CGFloat = 0
     private var focusedInputOffset: CGFloat = 0
     
     private let webContentView = WebContentView()
@@ -70,7 +72,13 @@ final class ContentView: UIView {
     
     private func configureAppearance() {
         translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = .systemBackground
+        applyAppearance()
+    }
+
+    func applyAppearance() {
+        backgroundColor = BrowserAppearance.backgroundColor
+        overlayContentView.applyAppearance()
+        tintColor = BrowserAppearance.accentColor
     }
     
     private func configureHierarchy() {
@@ -120,6 +128,13 @@ final class ContentView: UIView {
         bottomConstraint = nextBottomConstraint
         updateLayoutOffsets()
     }
+
+    func keyboardAvoidanceReferenceFrame(in view: UIView) -> CGRect {
+        var referenceFrame = convert(bounds, to: view)
+        referenceFrame.origin.y += focusedInputOffset
+        referenceFrame.size.height += pageViewportBottomInset
+        return referenceFrame
+    }
     
     private func canActivateConstraints(_ constraints: [NSLayoutConstraint]) -> Bool {
         constraints.allSatisfy { constraint in
@@ -145,10 +160,11 @@ final class ContentView: UIView {
     }
     
     private func updateLayoutOffsets() {
-        topConstraint?.constant = layoutState.mode == .fullscreen ? 0 : -focusedInputOffset
+        let contentOffset = layoutState.mode == .fullscreen ? 0 : focusedInputOffset
+        topConstraint?.constant = -contentOffset
         switch layoutState.mode {
         case .standard:
-            bottomConstraint?.constant = -focusedInputOffset
+            bottomConstraint?.constant = -(pageViewportBottomInset + contentOffset)
         case .searchFocused:
             bottomConstraint?.constant = -UX.phoneSearchFocusedBottomInset
         case .fullscreen:
@@ -158,14 +174,23 @@ final class ContentView: UIView {
     
     // MARK: - Focused Input Relocation
     
-    func relocateFocusedInput(
+    func applyPageKeyboardAvoidance(
+        bottomInset: CGFloat,
         above keyboardFrame: CGRect,
         animationDuration: TimeInterval,
         animationOptions: UIView.AnimationOptions
     ) {
         focusedInputTask?.cancel()
+        setKeyboardAvoidance(
+            bottomInset: bottomInset,
+            focusedOffset: focusedInputOffset,
+            animationDuration: animationDuration,
+            animationOptions: animationOptions
+        )
         guard let session else {
-            resetFocusedInputRelocation(
+            setKeyboardAvoidance(
+                bottomInset: bottomInset,
+                focusedOffset: 0,
                 animationDuration: animationDuration,
                 animationOptions: animationOptions
             )
@@ -176,35 +201,52 @@ final class ContentView: UIView {
             guard let self else { return }
             let bottomRatio = await session.focusedInputBottomRatio()
             guard !Task.isCancelled else { return }
-            
-            inputBottomRatio = bottomRatio
+            guard let bottomRatio else {
+                inputBottomRatio = nil
+                setKeyboardAvoidance(
+                    bottomInset: bottomInset,
+                    focusedOffset: 0,
+                    animationDuration: animationDuration,
+                    animationOptions: animationOptions
+                )
+                return
+            }
+
+            inputBottomRatio = min(max(bottomRatio, 0), 2)
             superview?.layoutIfNeeded()
             let newOffset = calculateFocusedInputOffset(keyboardFrame: keyboardFrame)
             guard abs(newOffset - focusedInputOffset) > UX.focusedInputOffsetThreshold else {
                 return
             }
             
-            focusedInputOffset = newOffset
-            updateLayoutOffsets()
-            animateLayout(duration: animationDuration, options: animationOptions)
+            setKeyboardAvoidance(
+                bottomInset: bottomInset,
+                focusedOffset: newOffset,
+                animationDuration: animationDuration,
+                animationOptions: animationOptions
+            )
         }
     }
     
     private func calculateFocusedInputOffset(keyboardFrame: CGRect) -> CGFloat {
         guard let inputBottomRatio else { return 0 }
         
-        let unshiftedFrame = frame.offsetBy(dx: 0, dy: focusedInputOffset)
-        guard unshiftedFrame.height > 1 else { return 0 }
-        
-        let keyboardOverlap = max(0, unshiftedFrame.maxY - keyboardFrame.minY)
-        guard keyboardOverlap > 0 else { return 0 }
-        
-        let focusBottom = unshiftedFrame.height * inputBottomRatio
+        let currentHeight = bounds.height > 1 ? bounds.height : frame.height
+        guard currentHeight > 1 else { return 0 }
+
+        let contentFrame = convert(bounds, to: superview)
+        let keyboardOverlap = contentFrame.intersection(keyboardFrame)
+        guard keyboardOverlap.isNull || keyboardOverlap.height <= UX.focusedInputBottomClearance else {
+            return 0
+        }
+
+        let focusBottom = currentHeight * inputBottomRatio
         let visibleBottom = max(
             0,
-            unshiftedFrame.height - keyboardOverlap - UX.focusedInputBottomClearance
+            currentHeight - UX.focusedInputBottomClearance
         )
-        return min(keyboardOverlap, max(0, focusBottom - visibleBottom))
+        let maximumOffset = currentHeight * UX.maximumFocusedInputOffsetRatio
+        return min(maximumOffset, max(0, focusBottom - visibleBottom))
     }
     
     func resetFocusedInputRelocation(
@@ -214,9 +256,29 @@ final class ContentView: UIView {
         focusedInputTask?.cancel()
         focusedInputTask = nil
         inputBottomRatio = nil
-        guard focusedInputOffset != 0 else { return }
-        
-        focusedInputOffset = 0
+        setKeyboardAvoidance(
+            bottomInset: 0,
+            focusedOffset: 0,
+            animationDuration: animationDuration,
+            animationOptions: animationOptions
+        )
+    }
+
+    private func setKeyboardAvoidance(
+        bottomInset: CGFloat,
+        focusedOffset: CGFloat,
+        animationDuration: TimeInterval,
+        animationOptions: UIView.AnimationOptions
+    ) {
+        let nextBottomInset = max(0, bottomInset)
+        let nextFocusedOffset = max(0, focusedOffset)
+        guard abs(nextBottomInset - pageViewportBottomInset) > UX.focusedInputOffsetThreshold
+                || abs(nextFocusedOffset - focusedInputOffset) > UX.focusedInputOffsetThreshold else {
+            return
+        }
+
+        pageViewportBottomInset = nextBottomInset
+        focusedInputOffset = nextFocusedOffset
         updateLayoutOffsets()
         animateLayout(duration: animationDuration, options: animationOptions)
     }
@@ -285,7 +347,22 @@ final class ContentView: UIView {
     }
     
     func restoreInteraction(for session: GeckoSession) {
+        self.session = session
+        isHidden = false
+        alpha = 1
+        isUserInteractionEnabled = true
         webContentView.restoreInteraction(for: session)
+    }
+
+    func hasRenderableContent(for session: GeckoSession) -> Bool {
+        layoutIfNeeded()
+        return !isHidden
+            && alpha > 0.01
+            && isUserInteractionEnabled
+            && window != nil
+            && bounds.width > 1
+            && bounds.height > 1
+            && webContentView.hasRenderableContent(for: session)
     }
     
     // MARK: - Interaction

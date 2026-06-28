@@ -61,6 +61,7 @@ final class BrowserChrome: UIView {
     var onPageZoomOut: (() -> Void)?
     var onPageZoomIn: (() -> Void)?
     var onPageZoomReset: (() -> Void)?
+    var onPageZoomLevelChange: ((Int) -> Void)?
     
     private let addressBar: AddressBar = {
         let view = AddressBar()
@@ -440,6 +441,7 @@ final class BrowserChrome: UIView {
         actionBar.onPageZoomOut = { [weak self] in self?.onPageZoomOut?() }
         actionBar.onPageZoomIn = { [weak self] in self?.onPageZoomIn?() }
         actionBar.onPageZoomReset = { [weak self] in self?.onPageZoomReset?() }
+        actionBar.onPageZoomLevelChange = { [weak self] level in self?.onPageZoomLevelChange?(level) }
         actionBar.onClose = { [weak self] in self?.dismissActionBar(animated: true) }
     }
     
@@ -477,6 +479,14 @@ final class BrowserChrome: UIView {
     
     func setSidebarButtonTransition(alpha: CGFloat, hidden: Bool) {
         topToolbar.setSidebarButtonTransition(alpha: alpha, hidden: hidden)
+    }
+
+    func applyAppearance() {
+        topToolbar.applyAppearance()
+        bottomToolbar.applyAppearance()
+        addressBar.applyAppearance()
+        actionBar.applyAppearance()
+        tintColor = BrowserAppearance.accentColor
     }
     
     // MARK: - View Setup

@@ -80,7 +80,7 @@ final class UserDataSearch {
             isPrivate: activeTabMode == .private
         ).filter { $0.id != excludingTabID }
         : []
-        let historyMatches = Prefs.SearchSettings.searchBrowsingHistory
+        let historyMatches = Prefs.SearchSettings.searchBrowsingHistory && activeTabMode != .private
         ? historyStore.search(matching: query, limit: limit).items
         : []
         let bookmarkMatches = Prefs.SearchSettings.searchBookmarks
@@ -115,7 +115,7 @@ final class UserDataSearch {
             isPrivate: activeTabMode == .private
         ).filter { $0.id != excludingTabID }
         : []
-        let historyMatches = Prefs.SearchSettings.searchBrowsingHistory
+        let historyMatches = Prefs.SearchSettings.searchBrowsingHistory && activeTabMode != .private
         ? historyStore.search(matching: query, limit: limit).items
         : []
         let bookmarkMatches = Prefs.SearchSettings.searchBookmarks

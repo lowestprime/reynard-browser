@@ -26,6 +26,11 @@ final class AppAppearancePickerCell: UITableViewCell {
         symbolName: "reynard.moon.fill",
         title: "Night"
     )
+    private let oledAppearanceOption = AppAppearanceOptionControl(
+        appearance: .oledBlack,
+        symbolName: "reynard.circle",
+        title: "OLED"
+    )
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -43,6 +48,7 @@ final class AppAppearancePickerCell: UITableViewCell {
         systemAppearanceOption.displaySelection(selected: selectedAppearance == .system)
         lightAppearanceOption.displaySelection(selected: selectedAppearance == .light)
         darkAppearanceOption.displaySelection(selected: selectedAppearance == .dark)
+        oledAppearanceOption.displaySelection(selected: selectedAppearance == .oledBlack)
     }
     
     private func configureCell() {
@@ -56,6 +62,7 @@ final class AppAppearancePickerCell: UITableViewCell {
             systemAppearanceOption,
             lightAppearanceOption,
             darkAppearanceOption,
+            oledAppearanceOption,
         ])
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .horizontal
@@ -74,6 +81,7 @@ final class AppAppearancePickerCell: UITableViewCell {
         systemAppearanceOption.addTarget(self, action: #selector(selectSystemAppearance), for: .touchUpInside)
         lightAppearanceOption.addTarget(self, action: #selector(selectLightAppearance), for: .touchUpInside)
         darkAppearanceOption.addTarget(self, action: #selector(selectDarkAppearance), for: .touchUpInside)
+        oledAppearanceOption.addTarget(self, action: #selector(selectOLEDAppearance), for: .touchUpInside)
     }
     
     @objc private func selectSystemAppearance() {
@@ -89,6 +97,11 @@ final class AppAppearancePickerCell: UITableViewCell {
     @objc private func selectDarkAppearance() {
         darkAppearanceOption.animateTap()
         selectAppearance(.dark)
+    }
+
+    @objc private func selectOLEDAppearance() {
+        oledAppearanceOption.animateTap()
+        selectAppearance(.oledBlack)
     }
     
     private func selectAppearance(_ appearance: AppAppearance) {

@@ -133,7 +133,7 @@ final class BottomToolbar: UIView {
             topConstraint.constant = verticalOffset - contentHeight
             contentHeightConstraint.constant = contentHeight
             isHidden = state == .hidden || state == .collapsed
-            backgroundColor = state == .focused ? .clear : .systemGray6
+            backgroundColor = state == .focused ? .clear : BrowserAppearance.toolbarBackgroundColor
             
             let isCompact = state == .compact || state == .collapsed
             standardButtonsTopConstraint?.isActive = !isCompact
@@ -169,6 +169,18 @@ final class BottomToolbar: UIView {
             for: .normal
         )
     }
+
+    func applyAppearance() {
+        backgroundColor = BrowserAppearance.toolbarBackgroundColor
+        [
+            backButton,
+            forwardButton,
+            shareButton,
+            libraryButton,
+            downloadButton,
+            tabOverviewButton,
+        ].forEach { $0.applyAppearance() }
+    }
     
     // MARK: - Action Wiring
     
@@ -183,7 +195,7 @@ final class BottomToolbar: UIView {
     
     private func configureAppearance() {
         translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = .systemGray6
+        applyAppearance()
     }
     
     private func configureHierarchy() {

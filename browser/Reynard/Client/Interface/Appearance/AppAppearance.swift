@@ -9,4 +9,5 @@ enum AppAppearance: String, CaseIterable {
     case system
     case light
     case dark
+    case oledBlack
 }

@@ -15,6 +15,17 @@ class SettingsTableViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureTableView()
+        applyAppearance()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appearancePreferencesDidChange),
+            name: .appearancePreferencesDidChange,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
@@ -36,5 +47,17 @@ class SettingsTableViewController: UITableViewController {
         if #available(iOS 15.0, *) {
             tableView.sectionHeaderTopPadding = UX.sectionHeaderTopPadding
         }
+    }
+
+    @objc private func appearancePreferencesDidChange() {
+        applyAppearance()
+        tableView.reloadData()
+    }
+
+    private func applyAppearance() {
+        view.backgroundColor = BrowserAppearance.groupedBackgroundColor
+        tableView.backgroundColor = BrowserAppearance.groupedBackgroundColor
+        tableView.tintColor = BrowserAppearance.accentColor
+        navigationController?.navigationBar.tintColor = BrowserAppearance.accentColor
     }
 }

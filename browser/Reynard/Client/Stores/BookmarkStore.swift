@@ -154,6 +154,12 @@ final class BookmarkStore {
             bookmarkSnapshotLocked(url: url)
         }
     }
+
+    func allBookmarks(limit: Int = 10_000) -> [BookmarkSnapshot] {
+        stateQueue.sync {
+            fetchAllBookmarksLocked(limit: limit)
+        }
+    }
     
     // MARK: - Folder Queries
     
@@ -552,6 +558,29 @@ final class BookmarkStore {
     }
     
     // MARK: - Search
+
+    private func fetchAllBookmarksLocked(limit: Int) -> [BookmarkSnapshot] {
+        guard limit > 0,
+              let statement = prepareStatementLocked(
+                """
+                SELECT id, guid, date_added, parentid, parentName, title, url
+                FROM \(Constants.bookmarkTableName)
+                WHERE type = ?
+                ORDER BY date_added DESC, id DESC
+                LIMIT ?;
+                """
+              ) else {
+            return []
+        }
+
+        defer {
+            sqlite3_finalize(statement)
+        }
+
+        sqlite3_bind_int64(statement, 1, BookmarkNodeType.bookmark.rawValue)
+        sqlite3_bind_int64(statement, 2, Int64(limit))
+        return readBookmarkSnapshotsLocked(from: statement)
+    }
     
     private func searchBookmarksPrefixLocked(matching query: String, limit: Int) -> [BookmarkSnapshot] {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)

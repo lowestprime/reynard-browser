@@ -6,7 +6,7 @@
 
 import UIKit
 
-final class HistoryViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, UIGestureRecognizerDelegate {
+final class HistoryViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate, UIGestureRecognizerDelegate, UIDocumentPickerDelegate {
     private enum UX {
         static let estimatedRowHeight: CGFloat = 72
         static let sectionHeaderTopPadding: CGFloat = 0
@@ -38,14 +38,14 @@ final class HistoryViewController: UIViewController, UITableViewDataSource, UITa
     private lazy var clearHistoryButton = LibraryActionButton(
         target: self,
         iconName: "reynard.clock.badge.xmark",
-        action: #selector(showClearHistory)
+        action: #selector(didTapHistoryActions)
     )
     private lazy var clearHistoryActionItem: UIBarButtonItem = {
         let item = UIBarButtonItem(
             image: UIImage(named: "reynard.clock.badge.xmark"),
             style: .plain,
             target: self,
-            action: #selector(showClearHistory)
+            action: #selector(didTapHistoryActions)
         )
         item.tag = LibraryActionButton.historyNavigationActionTag
         return item
@@ -67,7 +67,7 @@ final class HistoryViewController: UIViewController, UITableViewDataSource, UITa
     private lazy var tableView: UITableView = {
         let view = UITableView(frame: .zero, style: .insetGrouped)
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = .systemGroupedBackground
+        view.backgroundColor = BrowserAppearance.groupedBackgroundColor
         view.dataSource = self
         view.delegate = self
         view.rowHeight = UITableView.automaticDimension
@@ -89,6 +89,7 @@ final class HistoryViewController: UIViewController, UITableViewDataSource, UITa
     private var query = ""
     private var loadVersion = 0
     private var skipsNextStoreReload = false
+    private var isImportingHistory = false
     
     // MARK: - Lifecycle
     
@@ -99,7 +100,7 @@ final class HistoryViewController: UIViewController, UITableViewDataSource, UITa
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.backgroundColor = .systemGroupedBackground
+        view.backgroundColor = BrowserAppearance.groupedBackgroundColor
         
         view.addSubview(tableView)
         NSLayoutConstraint.activate([
@@ -110,6 +111,7 @@ final class HistoryViewController: UIViewController, UITableViewDataSource, UITa
         ])
         
         installHeader()
+        updateHistoryMenu()
         
         storeObserver = NotificationCenter.default.addObserver(
             forName: .historyStoreDidChange,
@@ -240,6 +242,28 @@ final class HistoryViewController: UIViewController, UITableViewDataSource, UITa
         navigationController.modalPresentationStyle = .pageSheet
         present(navigationController, animated: true)
     }
+
+    @objc private func didTapHistoryActions() {
+        if #available(iOS 14.0, *) {
+            showClearHistory()
+            return
+        }
+
+        let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "Clear History", style: .destructive) { [weak self] _ in
+            self?.showClearHistory()
+        })
+        alert.addAction(UIAlertAction(title: "Import History", style: .default) { [weak self] _ in
+            self?.confirmHistoryImport()
+        })
+        alert.addAction(UIAlertAction(title: "Export History", style: .default) { [weak self] _ in
+            self?.confirmHistoryExport()
+        })
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.popoverPresentationController?.sourceView = clearHistoryButton
+        alert.popoverPresentationController?.sourceRect = clearHistoryButton.bounds
+        present(alert, animated: true)
+    }
     
     private func installClearHistoryNavigationActionIfNeeded() {
         guard showsNavigationClearAction,
@@ -248,7 +272,169 @@ final class HistoryViewController: UIViewController, UITableViewDataSource, UITa
         }
         
         clearHistoryActionItem.tintColor = .label
+        updateHistoryMenu()
         LibraryActionButton.installNavigationAction(clearHistoryActionItem, in: navigationItem)
+    }
+
+    private func updateHistoryMenu() {
+        if #available(iOS 14.0, *) {
+            let menu = makeHistoryMenu()
+            clearHistoryActionItem.menu = menu
+            clearHistoryActionItem.target = nil
+            clearHistoryActionItem.action = nil
+            clearHistoryButton.menu = menu
+            clearHistoryButton.showsMenuAsPrimaryAction = true
+        }
+    }
+
+    @available(iOS 14.0, *)
+    private func makeHistoryMenu() -> UIMenu {
+        UIMenu(title: "", children: [
+            UIAction(
+                title: "Clear History",
+                image: UIImage(named: "reynard.clock.badge.xmark"),
+                attributes: .destructive
+            ) { [weak self] _ in
+                self?.showClearHistory()
+            },
+            UIMenu(title: "", image: nil, identifier: nil, options: .displayInline, children: [
+                UIAction(title: "Import History", image: UIImage(systemName: "square.and.arrow.down")) { [weak self] _ in
+                    self?.confirmHistoryImport()
+                },
+                UIAction(title: "Export History", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
+                    self?.confirmHistoryExport()
+                },
+            ]),
+        ])
+    }
+
+    // MARK: - History Transfer
+
+    private func confirmHistoryExport() {
+        let alert = UIAlertController(
+            title: "Export History",
+            message: "This creates a local CSV file that may include private URLs and page titles.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Export", style: .default) { [weak self] _ in
+            self?.exportHistory()
+        })
+        present(alert, animated: true)
+    }
+
+    private func exportHistory() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let items = HistoryStore.shared.currentSnapshot().items
+            let data = HistoryCSVTransfer.exportCSV(items: items)
+            let exportURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(HistoryCSVTransfer.fileName)
+
+            do {
+                try data.write(to: exportURL, options: .atomic)
+                DispatchQueue.main.async { [weak self] in
+                    self?.presentExportShareSheet(for: exportURL)
+                }
+            } catch {
+                DispatchQueue.main.async { [weak self] in
+                    self?.presentTransferError(message: "Could not create the history export file.")
+                }
+            }
+        }
+    }
+
+    private func presentExportShareSheet(for url: URL) {
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        controller.popoverPresentationController?.sourceView = view
+        controller.popoverPresentationController?.sourceRect = CGRect(
+            x: view.bounds.midX,
+            y: view.bounds.midY,
+            width: 1,
+            height: 1
+        )
+        present(controller, animated: true)
+    }
+
+    private func confirmHistoryImport() {
+        let alert = UIAlertController(
+            title: "Import History",
+            message: "Choose a Reynard CSV history export. Imported rows are stored locally; this is not Firefox Sync.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Choose File", style: .default) { [weak self] _ in
+            self?.presentHistoryImporter()
+        })
+        present(alert, animated: true)
+    }
+
+    private func presentHistoryImporter() {
+        isImportingHistory = true
+        let controller = UIDocumentPickerViewController(
+            documentTypes: ["public.comma-separated-values-text", "public.text"],
+            in: .import
+        )
+        controller.delegate = self
+        controller.allowsMultipleSelection = false
+        present(controller, animated: true)
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard isImportingHistory, let url = urls.first else {
+            isImportingHistory = false
+            return
+        }
+
+        isImportingHistory = false
+        importHistory(from: url)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        isImportingHistory = false
+    }
+
+    private func importHistory(from url: URL) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let didStartAccessing = url.startAccessingSecurityScopedResource()
+            defer {
+                if didStartAccessing {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            guard let data = try? Data(contentsOf: url) else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.presentTransferError(message: "Could not read the selected history file.")
+                }
+                return
+            }
+
+            let importedItems = HistoryCSVTransfer.parseHistory(from: data)
+            for item in importedItems {
+                HistoryStore.shared.recordVisit(url: item.url, title: item.title, visitedAt: item.visitedAt)
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.reloadHistory()
+                self?.presentImportSummary(DataImportSummary(imported: importedItems.count, skipped: 0))
+            }
+        }
+    }
+
+    private func presentImportSummary(_ summary: DataImportSummary) {
+        let alert = UIAlertController(
+            title: "Import Complete",
+            message: "Imported \(summary.imported) history rows. Skipped \(summary.skipped).",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+
+    private func presentTransferError(message: String) {
+        let alert = UIAlertController(title: "Transfer Failed", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     // MARK: - Loading

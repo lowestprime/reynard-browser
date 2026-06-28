@@ -226,7 +226,7 @@ final class AddressBar: UIView {
         configureConstraints()
         configureTargets()
         configureObservers()
-        applyState()
+        applyAppearance()
     }
     
     required init?(coder: NSCoder) {
@@ -427,6 +427,13 @@ final class AddressBar: UIView {
     
     func setLoadingProgress(_ progress: Float, isLoading: Bool) {
         loadingState = isLoading ? .loading(progress: progress) : .idle
+        applyState()
+    }
+
+    func applyAppearance() {
+        tintColor = BrowserAppearance.accentColor
+        addressBarContent.backgroundColor = BrowserAppearance.surfaceColor
+        progressView.progressTintColor = BrowserAppearance.accentColor
         applyState()
     }
     

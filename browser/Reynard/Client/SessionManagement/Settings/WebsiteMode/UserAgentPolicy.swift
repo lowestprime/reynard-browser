@@ -13,6 +13,7 @@ import GeckoView
 struct UserAgentConfiguration {
     let override: String?
     let forcesMobileMode: Bool
+    let forcesDesktopMode: Bool
 }
 
 struct UserAgentPolicy {
@@ -29,15 +30,31 @@ struct UserAgentPolicy {
         let androidDesktopUserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:\(geckoMajorVersion).0) Gecko/20100101 Firefox/\(geckoMajorVersion).0"
         let googleMobileUserAgent = "Mozilla/5.0 (Linux; Android 15; Nexus 5 Build/MRA58N) FxQuantum/\(geckoMajorVersion).0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/\(chromeMajorVersion).0.0.0 Mobile Safari/537.36"
 
+        if usesGoogleDocsDesktopCompatibility(for: url) {
+            return UserAgentConfiguration(
+                override: androidDesktopUserAgent,
+                forcesMobileMode: false,
+                forcesDesktopMode: true
+            )
+        }
+
         // Always use the Android mobile user agent for AMO to
         // allow addons installation.
         if host == "addons.mozilla.org" {
-            return UserAgentConfiguration(override: androidMobileUserAgent, forcesMobileMode: true)
+            return UserAgentConfiguration(
+                override: androidMobileUserAgent,
+                forcesMobileMode: true,
+                forcesDesktopMode: false
+            )
         }
 
         // Addon setting pages also require the Android user agent to work properly.
         if url.starts(with: "moz-extension://") {
-            return UserAgentConfiguration(override: androidMobileUserAgent, forcesMobileMode: true)
+            return UserAgentConfiguration(
+                override: androidMobileUserAgent,
+                forcesMobileMode: true,
+                forcesDesktopMode: false
+            )
         }
 
         // I have so many people reporting broken UI issues, login
@@ -45,7 +62,11 @@ struct UserAgentPolicy {
         // hack stolen from the Google Search Fixer extension.
         if Prefs.CompatibilitySettings.useAndroidUserAgent && !prefersDesktopMode,
            host?.split(separator: ".").contains("google") == true {
-            return UserAgentConfiguration(override: googleMobileUserAgent, forcesMobileMode: false)
+            return UserAgentConfiguration(
+                override: googleMobileUserAgent,
+                forcesMobileMode: false,
+                forcesDesktopMode: false
+            )
         }
 
         let usesAndroidUserAgent = Prefs.CompatibilitySettings.useAndroidUserAgent || (host.map { host in
@@ -53,11 +74,24 @@ struct UserAgentPolicy {
         } ?? false)
 
         guard usesAndroidUserAgent else {
-            return UserAgentConfiguration(override: nil, forcesMobileMode: false)
+            return UserAgentConfiguration(
+                override: nil,
+                forcesMobileMode: false,
+                forcesDesktopMode: false
+            )
         }
         return UserAgentConfiguration(
             override: prefersDesktopMode ? androidDesktopUserAgent : androidMobileUserAgent,
-            forcesMobileMode: false
+            forcesMobileMode: false,
+            forcesDesktopMode: false
         )
+    }
+
+    func usesGoogleDocsDesktopCompatibility(for url: String) -> Bool {
+        guard Prefs.CompatibilitySettings.useGoogleDocsDesktopCompatibility,
+              let host = DomainMatcher.host(from: url) else {
+            return false
+        }
+        return DomainMatcher.matches(host: host, domain: "docs.google.com")
     }
 }

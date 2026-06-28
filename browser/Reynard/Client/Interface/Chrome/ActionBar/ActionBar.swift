@@ -8,7 +8,7 @@
 import UIKit
 
 final class ActionBar: UIView {
-    static let height: CGFloat = 62
+    static let height: CGFloat = 94
     
     enum Item: Equatable {
         case pageZoom
@@ -27,6 +27,11 @@ final class ActionBar: UIView {
     var onPageZoomReset: (() -> Void)? {
         get { return pageZoomActionBar.onReset }
         set { pageZoomActionBar.onReset = newValue }
+    }
+
+    var onPageZoomLevelChange: ((Int) -> Void)? {
+        get { return pageZoomActionBar.onZoomLevelChange }
+        set { pageZoomActionBar.onZoomLevelChange = newValue }
     }
     
     var onClose: (() -> Void)? {
@@ -62,6 +67,10 @@ final class ActionBar: UIView {
     
     func setPageZoomLevel(_ level: Int) {
         pageZoomActionBar.setZoomLevel(level)
+    }
+
+    func applyAppearance() {
+        pageZoomActionBar.applyAppearance()
     }
     
     func nextPageZoomLevel() -> Int {

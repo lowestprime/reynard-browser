@@ -106,9 +106,9 @@ final class SearchPreferencesViewController: SettingsTableViewController {
             
             switch SearchSuggestionsRow.allCases[indexPath.row] {
             case .showSearchSuggestions:
-                return switchCell(title: "Show Search Suggestions", accessoryView: showSearchSuggestionsSwitch)
+                return switchCell(title: "Search Provider Suggestions", accessoryView: showSearchSuggestionsSwitch)
             case .showInPrivateBrowsing:
-                return switchCell(title: "Show in Private Browsing", accessoryView: showInPrivateBrowsingSwitch)
+                return switchCell(title: "Provider Suggestions in Private Browsing", accessoryView: showInPrivateBrowsingSwitch)
             case .searchBrowsingHistory:
                 return switchCell(title: "Search Browsing History", accessoryView: searchBrowsingHistorySwitch)
             case .searchBookmarks:

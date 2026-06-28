@@ -55,13 +55,15 @@ final class AppAppearanceOptionControl: UIControl {
     
     func displaySelection(selected: Bool) {
         isSelected = selected
-        if selected {
+        if appearance == .oledBlack {
+            previewView.backgroundColor = .black
+        } else if selected {
             previewView.backgroundColor = traitCollection.userInterfaceStyle == .dark ? .systemGray5 : .systemBackground
         } else {
             previewView.backgroundColor = .clear
         }
         previewView.layer.borderColor = selected ? UIColor.clear.cgColor : UIColor.systemGray5.cgColor
-        previewImageView.tintColor = selected ? .label : .secondaryLabel
+        previewImageView.tintColor = appearance == .oledBlack ? .white : (selected ? .label : .secondaryLabel)
         nameLabel.textColor = selected ? .label : .secondaryLabel
     }
     

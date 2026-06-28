@@ -9,6 +9,7 @@ import Foundation
 
 extension Notification.Name {
     static let addressBarPositionDidChange = Notification.Name("Chrome.AddressBarPositionDidChange")
+    static let appearancePreferencesDidChange = Notification.Name("Appearance.PreferencesDidChange")
     static let landscapeTabBarDidChange = Notification.Name("Chrome.LandscapeTabBarDidChange")
     static let showFullWebsiteAddressDidChange = Notification.Name("Chrome.ShowFullWebsiteAddressDidChange")
     static let newTabDisplayOptionDidChange = Notification.Name("Browsing.NewTabDisplayOptionDidChange")
