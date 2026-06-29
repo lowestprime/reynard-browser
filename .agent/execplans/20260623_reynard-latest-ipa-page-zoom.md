@@ -706,17 +706,25 @@ Progress:
 - [x] Relevant Docs/session/gesture/keyboard/clipboard and appearance/content hierarchy code inspected.
 - [x] Root causes documented and targeted implementation completed.
 - [x] Local/static checks pass: sequential LF Gecko patch application, `node --check` on both patched modules, all three requested shell syntax checks, and `git diff --check`.
-- [ ] Final macOS archive-only or checkpointed workflow passes.
-- [ ] IPA downloaded, inspected, hashed, and published in a new fork prerelease.
+- [x] Final macOS checkpointed workflow passes.
+- [x] IPA downloaded, inspected, hashed, and published in a new fork prerelease.
 
-Active full-build handoff (2026-06-29):
+Final regression-fix build and release evidence:
 
 - Implementation commit `ffe429291a04faf2fb4cde11d31f797f5ffc801a` is pushed to `origin/fork/0.5.0-custom-sideload`.
-- Full checkpointed workflow run `28357388903` is `https://github.com/lowestprime/reynard-browser/actions/runs/28357388903` and is building that exact commit.
-- Completed live stages: dependency installation, restore of the prior branch's approximately `4.1 GB` sccache, Firefox `152.0.2` source checkout, all Gecko patches (including both new Docs patches and the modified UIKit theme patch), idevice FFI, and ld64 detection setup.
-- `Build Gecko` started at `2026-06-29T08:12:28Z`. The prior full run spent about `1h46m` in this stage even with an older cache; this run restored the newer cache from successful run `28337672838`, but acceleration must be judged from the final `sccache -s` output.
-- Per the no-idle-poll requirement, do not start another full build and do not spend a session only watching this compile. Resume with `gh run view 28357388903 --repo lowestprime/reynard-browser --json status,conclusion,headSha,url,jobs`.
-- If the run fails, retrieve `gh run view 28357388903 --repo lowestprime/reynard-browser --log-failed` and patch only the concrete failure. If it succeeds, inspect final sccache hits, download `Reynard-latest-main-ipa`, verify ZIP/plists/Mach-O/marker strings and build `ffe4292`, hash the IPA, then publish the new fork-only prerelease. No upstream PR action is permitted.
+- Full checkpointed workflow run `28357388903`, `https://github.com/lowestprime/reynard-browser/actions/runs/28357388903`, succeeded on that exact commit in `31m17s`.
+- Build job `84003544731` passed dependency installation, restored a prior approximately `4.1 GB` sccache archive, checked out Firefox `152.0.2`, applied all Gecko patches including the new Docs actor/module patches and UIKit theme patch, built idevice FFI, rebuilt Gecko, saved sccache, and uploaded the new Gecko checkpoint.
+- `Build Gecko` ran from `2026-06-29T08:12:28Z` to `2026-06-29T08:23:22Z`. Final `sccache -s` showed `5,253` compile requests, `4,735` executed requests, `4,644` cache hits, `72` misses, a `98.47%` hit rate, `4 GiB` used, `8 GiB` max, and `0` failed distributed compilations. This proves local sccache acceleration only; no distributed WSL2 acceleration was used or claimed.
+- Gecko checkpoint artifact `gecko-dist-aarch64-apple-ios` had artifact ID `7946365262`, size `124,055,036` bytes, and download digest `sha256:18752b76964fc31466cc524f2a80c8d1c6d923a50b9b8acf5e92507c1e3bcae9`.
+- Archive job `84007704253` consumed that checkpoint and succeeded. The archive log showed `CURRENT_BUILD = ffe4292`, built the app archive, created the IPA, verified the IPA, and uploaded `Reynard-latest-main-ipa`.
+- IPA artifact `Reynard-latest-main-ipa` had artifact ID `7946514501`, uploaded artifact ZIP digest `sha256:eb6ac89fc67ba11bcc348e647ef599370042be8f26fb840b3db85a3b0a87a29d`, and final artifact ZIP size `108,236,685` bytes.
+- Local IPA: `C:\Users\Cooper\Downloads\Reynard-0.5.0-docs-theme-fix-28357388903\Reynard.ipa`, `110,131,077` bytes, SHA-256 `7e04f492461a735b808a35a96e540efd104633ebdd4a1d1fb0b86e4d19cf9f31`.
+- Local verification passed: `unzip -tq` reported no compressed-data errors; the IPA had `3,032` unique entries and no duplicates; app/helper/open-in plists all reported version `0.5.0` build `ffe4292`; `Payload/Reynard.app/Reynard`, both app-extension plists, `GeckoView.framework`, and an `XUL` payload were present; `21` Mach-O entries were detected; there were no `_CodeSignature` or provisioning-profile entries.
+- Marker scan found `GeckoView:GoogleDocsPan` in `Payload/Reynard.app/Frameworks/GeckoView.framework/Frameworks/modules/GeckoViewContent.sys.mjs`, `GoogleDocsInteractionController` in the app binary, and existing `Page Zoom`, `Custom Accent`, and Google Docs desktop-compatibility strings. Release optimization did not retain every Swift helper name, so missing marker strings are not treated as proof of absence.
+- Fork prerelease `reynard-0.5.0-docs-theme-fix-2026-06-29` was published at `https://github.com/lowestprime/reynard-browser/releases/tag/reynard-0.5.0-docs-theme-fix-2026-06-29`, targeting app commit `ffe429291a04faf2fb4cde11d31f797f5ffc801a`.
+- Release asset `Reynard.ipa` has GitHub asset digest `sha256:7e04f492461a735b808a35a96e540efd104633ebdd4a1d1fb0b86e4d19cf9f31`, matching the locally verified IPA. Release asset `Reynard.ipa.sha256` was uploaded beside it.
+- No upstream pull request, merge request, comment, review, or merge action was created or modified.
+- Remaining evidence gap: hands-on iOS device behavior for Google Docs canvas scrolling, Docs keyboard behavior, selection, paste, theme toggles, ChatGPT/Gemini keyboard avoidance, and background tab recovery still requires manual installation and testing on the target device.
 
 ## Plan of Work
 
