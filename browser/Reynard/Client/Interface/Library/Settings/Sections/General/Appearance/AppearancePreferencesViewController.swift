@@ -129,7 +129,6 @@ final class AppearancePreferencesViewController: SettingsTableViewController {
             cell.display(selectedAppearance: Prefs.AppearanceSettings.appAppearance)
             cell.onAppearanceChanged = { appearance in
                 Prefs.AppearanceSettings.appAppearance = appearance
-                AppAppearanceController.apply(appearance)
             }
             return cell
         case let .accent(accent):

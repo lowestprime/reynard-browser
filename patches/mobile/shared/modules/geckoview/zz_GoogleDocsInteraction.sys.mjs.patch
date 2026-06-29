@@ -1,0 +1,20 @@
+diff --git a/mobile/shared/modules/geckoview/GeckoViewContent.sys.mjs b/mobile/shared/modules/geckoview/GeckoViewContent.sys.mjs
+--- a/mobile/shared/modules/geckoview/GeckoViewContent.sys.mjs
++++ b/mobile/shared/modules/geckoview/GeckoViewContent.sys.mjs
+@@ -16,5 +16,6 @@ export class GeckoViewContent extends GeckoViewModule {
+       "GeckoView:ContainsFormData",
+       "GeckoView:GetFocusedInputMetrics",
++      "GeckoView:GoogleDocsPan",
+       "GeckoView:ProcessBackPressed",
+       "GeckoView:ScrollBy",
+       "GeckoView:ScrollTo",
+@@ -283,6 +284,9 @@ export class GeckoViewContent extends GeckoViewModule {
+       case "GeckoView:GetFocusedInputMetrics":
+         this._getFocusedInputMetrics(aCallback);
+         break;
++      case "GeckoView:GoogleDocsPan":
++        this.sendToAllChildren(aEvent, aData);
++        break;
+       case "GeckoView:GetWebCompatInfo":
+         this._getWebCompatInfo(aCallback);
+         break;

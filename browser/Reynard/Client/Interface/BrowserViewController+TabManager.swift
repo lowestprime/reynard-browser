@@ -17,6 +17,7 @@ extension BrowserViewController: TabManagerDelegate {
         } else {
             contentView.setSession(nil)
         }
+        syncGoogleDocsInteractionCompatibility()
         refreshAddressBar()
         
         if !tabOverview.isPresented {
@@ -45,6 +46,7 @@ extension BrowserViewController: TabManagerDelegate {
         updateNavigationButtons()
         
         contentView.setSession(selectedTab.session)
+        syncGoogleDocsInteractionCompatibility()
         addonCoordinator.handleTabSelectionChange(selectedIndex: index, previousIndex: previousIndex)
         
         if !tabOverview.isPresented && !tabOverview.isTransitionRunning {
@@ -67,6 +69,7 @@ extension BrowserViewController: TabManagerDelegate {
             contentView.restoreInteraction(for: replacementSession)
             updateBrowserLayout(animated: false)
         }
+        syncGoogleDocsInteractionCompatibility()
         addonCoordinator.handleSelectedTabSessionReplacement(from: previousSession, to: replacementSession)
     }
     
@@ -115,6 +118,7 @@ extension BrowserViewController: TabManagerDelegate {
         case .location:
             if index == tabManager.selectedTabIndex {
                 let tab = tabManager.activeTabs[index]
+                syncGoogleDocsInteractionCompatibility()
                 refreshAddressBar()
                 browserChrome.updatePageZoomLevel(tab.session.settings.pageZoom.level)
                 updateNavigationButtons()

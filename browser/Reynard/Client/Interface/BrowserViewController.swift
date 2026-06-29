@@ -58,6 +58,7 @@ final class BrowserViewController: UIViewController {
     let tabOverview = TabOverview()
     let contentView = ContentView()
     lazy var browserChrome = BrowserChrome()
+    let googleDocsInteractionController = GoogleDocsInteractionController()
     
     lazy var overlayCoordinator = OverlayCoordinator(host: self)
     lazy var homepageOverlayCoordinator = HomepageOverlayCoordinator(
@@ -186,6 +187,7 @@ final class BrowserViewController: UIViewController {
             browserChrome.syncSidebarButton(splitViewController: splitViewController)
             downloadsCoordinator.syncToolbarButtonState()
             updateBrowserLayout(animated: false)
+            syncGoogleDocsInteractionCompatibility()
         }
     }
     
@@ -236,6 +238,7 @@ final class BrowserViewController: UIViewController {
             gestureDelegate: self
         )
         configureBrowserChromeActions()
+        googleDocsInteractionController.install(in: contentView)
         tabBar.dataSource = self
         tabOverview.configure(dataSource: self, delegate: self, presentationContext: self)
         
@@ -682,16 +685,36 @@ final class BrowserViewController: UIViewController {
     }
 
     @objc private func appearancePreferencesDidChange() {
-        applyBrowserAppearance()
+        applyBrowserAppearance(restoringSelectedContent: true)
     }
 
-    private func applyBrowserAppearance() {
+    private func applyBrowserAppearance(restoringSelectedContent: Bool = false) {
         BrowserAppearance.apply(to: view.window)
         view.backgroundColor = BrowserAppearance.backgroundColor
         contentView.applyAppearance()
         browserChrome.applyAppearance()
         view.tintColor = BrowserAppearance.accentColor
         setNeedsStatusBarAppearanceUpdate()
+
+        guard restoringSelectedContent,
+              let selectedTab = tabManager.selectedTab else {
+            return
+        }
+
+        contentView.restoreSessionViewIfNeeded(for: selectedTab.session)
+        selectedTab.session.setActive(true)
+        updateBrowserLayout(animated: false)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+    }
+
+    func syncGoogleDocsInteractionCompatibility() {
+        let selectedTab = tabManager.selectedTab
+        googleDocsInteractionController.update(
+            session: selectedTab?.session,
+            url: selectedTab?.url
+        )
+        reapplyKeyboardAvoidance(animation: KeyboardAnimation(duration: 0, curve: []))
     }
 
     // MARK: - App Lifecycle
@@ -785,12 +808,14 @@ final class BrowserViewController: UIViewController {
         let animation = keyboardAnimation(from: notification)
         let state = keyboardAvoidanceState(for: keyboardFrame)
         visibleKeyboardFrame = state.hasKeyboardOverlap ? keyboardFrame : nil
+        googleDocsInteractionController.setKeyboardVisible(state.hasKeyboardOverlap)
         applyKeyboardAvoidance(state, animation: animation)
     }
 
     @objc private func keyboardWillHide(_ notification: Notification) {
         let animation = keyboardAnimation(from: notification)
         visibleKeyboardFrame = nil
+        googleDocsInteractionController.setKeyboardVisible(false)
         applyKeyboardAvoidance(.inactive, animation: animation)
     }
 
@@ -809,6 +834,7 @@ final class BrowserViewController: UIViewController {
             contentView.applyPageKeyboardAvoidance(
                 bottomInset: state.pageViewportBottomInset,
                 above: state.keyboardFrame ?? .null,
+                allowsFocusedInputRelocation: !googleDocsInteractionController.isEnabled,
                 animationDuration: animation.duration,
                 animationOptions: animation.curve
             )

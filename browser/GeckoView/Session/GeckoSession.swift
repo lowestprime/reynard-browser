@@ -19,6 +19,13 @@ public enum GeckoSessionLoadFlags {
 }
 
 public class GeckoSession {
+    public enum GoogleDocsPanPhase: String {
+        case began
+        case changed
+        case ended
+        case cancelled
+    }
+
     // MARK: - State
     
     let dispatcher: GeckoEventDispatcherWrapper = GeckoEventDispatcherWrapper()
@@ -251,6 +258,26 @@ public class GeckoSession {
         }
         
         return PayloadValue.cgFloat(bottomRatioValue)
+    }
+
+    public func handleGoogleDocsPan(
+        phase: GoogleDocsPanPhase,
+        xRatio: CGFloat,
+        yRatio: CGFloat,
+        deltaYRatio: CGFloat,
+        keyboardVisible: Bool
+    ) {
+        guard isOpen() else { return }
+        dispatcher.dispatch(
+            type: "GeckoView:GoogleDocsPan",
+            message: [
+                "phase": phase.rawValue,
+                "xRatio": xRatio,
+                "yRatio": yRatio,
+                "deltaYRatio": deltaYRatio,
+                "keyboardVisible": keyboardVisible,
+            ]
+        )
     }
     
     // MARK: - Selection Actions

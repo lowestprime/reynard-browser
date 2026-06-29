@@ -620,6 +620,7 @@ final class BrowserPreferences {
             }
             set {
                 prefs.set(newValue.rawValue, forSetting: "AppearanceSettings", key: "appAppearance")
+                AppAppearanceController.apply(newValue)
                 NotificationCenter.default.post(name: .appearancePreferencesDidChange, object: nil)
             }
         }

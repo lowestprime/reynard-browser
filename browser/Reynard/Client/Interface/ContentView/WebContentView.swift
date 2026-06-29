@@ -74,6 +74,16 @@ final class WebContentView: UIView {
         if webView.session !== session {
             webView.session = session
         }
+        webView.restoreSessionViewIfNeeded()
+        setNeedsLayout()
+        layoutIfNeeded()
+    }
+
+    func restoreSessionViewIfNeeded(for session: GeckoSession) {
+        if webView.session !== session {
+            webView.session = session
+        }
+        webView.restoreSessionViewIfNeeded()
         setNeedsLayout()
         layoutIfNeeded()
     }
@@ -97,5 +107,9 @@ final class WebContentView: UIView {
     
     func addWebViewInteraction(_ interaction: UIInteraction) {
         webView.addInteraction(interaction)
+    }
+
+    func addWebViewGestureRecognizer(_ gestureRecognizer: UIGestureRecognizer) {
+        webView.addGestureRecognizer(gestureRecognizer)
     }
 }

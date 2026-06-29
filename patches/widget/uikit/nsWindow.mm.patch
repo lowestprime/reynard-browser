@@ -153,7 +153,7 @@ index a6edb082d7f0..309e76990812 100644
  
    // This is managed with weak references by the notification center so that we
    // do not need to call removeObserver.
-@@ -199,9 +210,26 @@ - (id)initWithFrame:(CGRect)inFrame geckoChild:(nsWindow*)inChild {
+@@ -199,9 +210,31 @@ - (id)initWithFrame:(CGRect)inFrame geckoChild:(nsWindow*)inChild {
    return self;
  }
  
@@ -170,6 +170,11 @@ index a6edb082d7f0..309e76990812 100644
 +
 +  nsLookAndFeel::SetSystemUsesDarkTheme(
 +      self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark);
++  // REYNARD: A trait transition can leave the previously committed Gecko
++  // layer behind the newly resolved UIKit background. Force a main-thread
++  // layer transaction so live theme changes keep rendered content visible.
++  [self setNeedsLayout];
++  [self markLayerForDisplay];
 +}
 +
  - (void)widgetDestroyed {

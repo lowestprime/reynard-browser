@@ -177,6 +177,7 @@ final class ContentView: UIView {
     func applyPageKeyboardAvoidance(
         bottomInset: CGFloat,
         above keyboardFrame: CGRect,
+        allowsFocusedInputRelocation: Bool = true,
         animationDuration: TimeInterval,
         animationOptions: UIView.AnimationOptions
     ) {
@@ -187,6 +188,16 @@ final class ContentView: UIView {
             animationDuration: animationDuration,
             animationOptions: animationOptions
         )
+        guard allowsFocusedInputRelocation else {
+            inputBottomRatio = nil
+            setKeyboardAvoidance(
+                bottomInset: bottomInset,
+                focusedOffset: 0,
+                animationDuration: animationDuration,
+                animationOptions: animationOptions
+            )
+            return
+        }
         guard let session else {
             setKeyboardAvoidance(
                 bottomInset: bottomInset,
@@ -354,6 +365,11 @@ final class ContentView: UIView {
         webContentView.restoreInteraction(for: session)
     }
 
+    func restoreSessionViewIfNeeded(for session: GeckoSession) {
+        self.session = session
+        webContentView.restoreSessionViewIfNeeded(for: session)
+    }
+
     func hasRenderableContent(for session: GeckoSession) -> Bool {
         layoutIfNeeded()
         return !isHidden
@@ -369,6 +385,10 @@ final class ContentView: UIView {
     
     func addWebViewInteraction(_ interaction: UIInteraction) {
         webContentView.addWebViewInteraction(interaction)
+    }
+
+    func addWebViewGestureRecognizer(_ gestureRecognizer: UIGestureRecognizer) {
+        webContentView.addWebViewGestureRecognizer(gestureRecognizer)
     }
     
     // MARK: - Presentation

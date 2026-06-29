@@ -656,6 +656,59 @@ All listed checks returned zero and both workflow files parsed as YAML. Swift an
 - Fork prerelease: `https://github.com/lowestprime/reynard-browser/releases/tag/reynard-0.5.0-custom-sideload-2026-06-28`. GitHub's release-asset digest for `Reynard.ipa` matches the locally verified SHA-256. The release also includes `Reynard.ipa.sha256`.
 - No upstream pull request, merge request, review, comment, or merge action was created or modified.
 
+## Google Docs Interaction and Theme Live-Apply Regression Fix
+
+Purpose: repair two real-device regressions on top of the verified fork-only `0.5.0` custom sideload release without broadening scope or changing the upstream delivery policy. The target outcome is a new unsigned fork prerelease where long Google Docs documents are practically scrollable/editable within Gecko's iOS limits and appearance changes no longer cover or detach the active web content.
+
+Verified starting point:
+
+- Branch `fork/0.5.0-custom-sideload` is at documentation head `a79ae332e9bf8002e4df254d5086dd9132ed1900`; released app commit is `74319832e8d9d48fabeba8158e05e74a36b4c059`.
+- Full checkpoint run `28337672838` produced the compatible Firefox `152.0.2` Gecko dist; archive-only run `28344020417` produced the installed IPA.
+- The Google Docs compatibility layer is currently native session policy only: host-scoped desktop Firefox/Linux user agent plus Gecko desktop user-agent and viewport modes. The device result proves UA/viewport configuration alone is insufficient.
+- Device evidence: the desktop Docs UI renders, but vertical swipes do not move the document canvas or reliably navigate a long document. Editing and selection are not seamless, and Markdown paste remains incomplete.
+- Device evidence: tapping Docs elements can open the keyboard unexpectedly; an additional black bar appears above it, substantial document content is obscured, and tap-outside focus/dismissal is inconsistent.
+- Device evidence: selecting System, Day, Night, or OLED appearance can replace the visible browser with a solid black or white screen until the app is force-closed and reopened. Persistence works after relaunch, so this is a live apply, hierarchy, layout, or reattachment regression.
+
+Success criteria:
+
+- [ ] Ordinary vertical pans over a long `docs.google.com` editor scroll the document without browser chrome stealing the gesture.
+- [ ] Docs keyboard show/hide uses the actual visible content viewport, leaves no extra black obstruction, and restores layout without a blank region.
+- [ ] Docs text editing, caret/selection, copy, plain-text paste, and Markdown-text paste use Gecko/native clipboard support where available; unsupported Google/iOS behavior is documented without overclaiming.
+- [ ] Page Zoom at `75%`, `100%`, `150%`, and `200%` remains compatible with the Docs interaction fix.
+- [ ] System, Day, Night, and OLED appearance changes apply immediately while the selected tab stays visible and interactive; the custom accent remains active.
+- [ ] ChatGPT/Gemini keyboard avoidance, background recovery, Page Zoom, transfer, search, and checkpointed CI behavior remain intact.
+- [ ] A final archive-only run succeeds unless a durable Gecko patch is proven necessary, and the resulting unsigned IPA is inspected, hashed, and published as a new fork prerelease.
+
+Constraints and initial decisions:
+
+- Keep all changes fork-only. Do not create, reopen, update, comment on, review, or merge an upstream pull request.
+- Inspect the existing gesture, content hierarchy, keyboard inset, appearance notification, session attachment, clipboard, and Gecko event APIs before choosing a bridge.
+- Prefer host-scoped native behavior. A `docs.google.com` content helper is allowed only when Gecko/native APIs cannot deliver wheel-style scrolling, and it must not inspect or log document contents or broadly intercept selection/editing.
+- Do not edit `engine/firefox` directly. If Gecko behavior must change, represent it under `patches/`, record the exact reason, and run the full checkpointed workflow once.
+- Reuse `gecko-dist-aarch64-apple-ios` from run `28337672838` when only app/native code changes.
+
+Diagnosed causes and targeted implementation:
+
+- The browser's chrome pan recognizers are attached to the address bar rather than the Gecko content surface, so chrome is not consuming ordinary Docs canvas swipes. The remaining mismatch is inside the desktop Docs interaction model: UA/viewport emulation loads the canvas UI, but touch motion does not provide the wheel-style input that the long-document editor expects.
+- Add a one-finger vertical-pan recognizer only while the selected top-level URL matches the existing `docs.google.com` desktop-compatibility policy. It ignores horizontal intent, yields to long-press selection, leaves taps untouched, cancels the underlying touch sequence only after a vertical pan is recognized, and sends normalized coordinates/deltas to the selected Gecko session.
+- Add a durable Gecko actor/module patch that rechecks the top-level Docs host, targets the element under the original pan point, and uses privileged `windowUtils.sendWheelEvent` input. A generic nearest-scrollable-ancestor fallback runs only if Gecko's wheel API throws. The helper does not use Docs selectors, inspect document text, or run on another host.
+- Existing Gecko UIKit editable support already routes native copy, cut, paste, and select-all commands through Gecko and checks the iOS pasteboard. The fix preserves that pathway. Markdown clipboard contents can be pasted as text with their line breaks; rich Markdown-to-Google-Docs conversion remains controlled by Google and is not promised.
+- The extra keyboard bar is caused by applying two page movements to Docs: the correct bottom constraint inset for the keyboard intersection followed by a focused-input translation derived from Docs' hidden editor element. Keep the actual viewport inset for Docs but disable only that secondary focused-input relocation; ChatGPT, Gemini, and other sites retain the existing relocation behavior.
+- Appearance persistence was updated before `AppAppearanceController.apply`, while the browser notification could repaint chrome/content against the old trait collection and then trigger a second independent trait transition. Apply the new trait first, post one notification, reapply chrome/layout, and reattach the existing selected Gecko view only when detached without changing overlay visibility or reloading the tab.
+- UIKit's Gecko host view resolved a new opaque system background during `traitCollectionDidChange` but did not request a new Gecko CoreAnimation transaction. Extend the durable `nsWindow.mm` patch to mark its layer for display on the main thread after the trait update, preventing the new black/white background from remaining above a stale Gecko layer.
+- These actor and UIKit changes alter Gecko dist output, so the old checkpoint cannot contain the complete fix. Run one full checkpointed build, save the new dist artifact, and use archive-only reruns only for any subsequent Swift/archive corrections.
+
+Progress:
+
+- [x] Root `AGENTS.md`, `PLANS.md`, and current ExecPlan read.
+- [x] Branch, worktree, and latest twelve commits inspected; only the pre-existing untracked `.codex/` directory is present.
+- [x] Device regression evidence and native-first build decision recorded.
+- [x] Relevant Docs/session/gesture/keyboard/clipboard and appearance/content hierarchy code inspected.
+- [x] Root causes documented and targeted implementation completed.
+- [x] Local/static checks pass: sequential LF Gecko patch application, `node --check` on both patched modules, all three requested shell syntax checks, and `git diff --check`.
+- [ ] Final macOS archive-only or checkpointed workflow passes.
+- [ ] IPA downloaded, inspected, hashed, and published in a new fork prerelease.
+
 ## Plan of Work
 
 First repair `.github/workflows/build-latest-reynard-ipa.yml` so the dependency step installs `lld`, prepends `/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/llvm/bin` for WASM-only wrapper commands, uses `command -v wasm-ld`, and validates a real WASM link using the Homebrew WASI sysroot. Commit, push, trigger the workflow, and inspect the result.

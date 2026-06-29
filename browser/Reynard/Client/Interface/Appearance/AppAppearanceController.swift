@@ -7,6 +7,7 @@
 
 import UIKit
 
+@MainActor
 enum AppAppearanceController {
     static func apply(_ appearance: AppAppearance) {
         UIApplication.shared.connectedScenes
@@ -17,6 +18,8 @@ enum AppAppearanceController {
                 window.backgroundColor = BrowserAppearance.backgroundColor
                 window.tintColor = BrowserAppearance.accentColor
                 window.rootViewController?.view.tintColor = BrowserAppearance.accentColor
+                window.rootViewController?.view.setNeedsLayout()
+                window.setNeedsLayout()
             }
     }
     

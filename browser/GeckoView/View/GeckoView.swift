@@ -42,6 +42,29 @@ public class GeckoView: UIView {
         if engineView.superview != nil {
             fatalError("attempt to assign GeckoSession to multiple GeckoView instances")
         }
+
+        attach(engineView)
+    }
+
+    public func restoreSessionViewIfNeeded() {
+        guard let engineView = session?.engineView else { return }
+        if engineView.superview === self {
+            engineView.isHidden = false
+            engineView.alpha = 1
+            engineView.isUserInteractionEnabled = true
+            setNeedsLayout()
+            return
+        }
+
+        guard engineView.superview == nil else {
+            NSLog("GeckoView: refusing to steal a session view from another host")
+            return
+        }
+
+        attach(engineView)
+    }
+
+    private func attach(_ engineView: UIView) {
         
         engineView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(engineView)

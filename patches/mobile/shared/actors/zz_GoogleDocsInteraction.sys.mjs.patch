@@ -1,0 +1,138 @@
+diff --git a/mobile/shared/actors/GeckoViewContentChild.sys.mjs b/mobile/shared/actors/GeckoViewContentChild.sys.mjs
+--- a/mobile/shared/actors/GeckoViewContentChild.sys.mjs
++++ b/mobile/shared/actors/GeckoViewContentChild.sys.mjs
+@@ -151,3 +151,122 @@ export class GeckoViewContentChild extends GeckoViewActorChild {
+   }
+-
++
++  isGoogleDocsDocument() {
++    const { contentWindow } = this;
++    if (!contentWindow || this.browsingContext?.parent) {
++      return false;
++    }
++
++    const host = contentWindow.location?.hostname?.toLowerCase() || "";
++    return host === "docs.google.com" || host.endsWith(".docs.google.com");
++  }
++
++  googleDocsParentElement(element) {
++    if (!element) {
++      return null;
++    }
++    return element.parentElement || element.getRootNode?.()?.host || null;
++  }
++
++  googleDocsScrollableAncestor(element) {
++    const { contentWindow } = this;
++    let candidate = element;
++    while (candidate && candidate !== contentWindow.document.documentElement) {
++      if (candidate.nodeType === contentWindow.Node.ELEMENT_NODE) {
++        const style = contentWindow.getComputedStyle(candidate);
++        const permitsVerticalScroll = /^(auto|scroll|overlay)$/.test(
++          style.overflowY
++        );
++        if (
++          permitsVerticalScroll &&
++          candidate.scrollHeight > candidate.clientHeight + 1
++        ) {
++          return candidate;
++        }
++      }
++      candidate = this.googleDocsParentElement(candidate);
++    }
++    return null;
++  }
++
++  handleGoogleDocsPan(data) {
++    if (!this.isGoogleDocsDocument()) {
++      this.googleDocsPanTarget = null;
++      return;
++    }
++
++    const { contentWindow } = this;
++    const phase = data.phase;
++    if (phase === "ended" || phase === "cancelled") {
++      this.googleDocsPanTarget = null;
++      return;
++    }
++
++    const viewport = contentWindow.visualViewport;
++    const viewportWidth = viewport?.width || contentWindow.innerWidth;
++    const viewportHeight = viewport?.height || contentWindow.innerHeight;
++    if (viewportWidth <= 0 || viewportHeight <= 0) {
++      return;
++    }
++
++    const clamp = (value, minimum, maximum) =>
++      Math.min(maximum, Math.max(minimum, value));
++    const clientX = clamp(Number(data.xRatio) || 0, 0, 1) * viewportWidth;
++    const clientY = clamp(Number(data.yRatio) || 0, 0, 1) * viewportHeight;
++    const hitTarget = contentWindow.document.elementFromPoint(clientX, clientY);
++
++    if (phase === "began") {
++      this.googleDocsPanTarget = hitTarget;
++      return;
++    }
++    if (phase !== "changed") {
++      return;
++    }
++
++    const target = this.googleDocsPanTarget?.isConnected
++      ? this.googleDocsPanTarget
++      : hitTarget;
++    if (!target) {
++      return;
++    }
++
++    const focusedElement =
++      Services.focus.focusedElement || contentWindow.document.activeElement;
++    if (
++      this.isFocusedEditableElement(target) &&
++      !data.keyboardVisible &&
++      focusedElement !== target
++    ) {
++      return;
++    }
++
++    const deltaY =
++      clamp(Number(data.deltaYRatio) || 0, -0.35, 0.35) * viewportHeight;
++    if (Math.abs(deltaY) < 0.25) {
++      return;
++    }
++
++    try {
++      const lineDeltaY = deltaY > 0 ? Math.ceil(deltaY) : Math.floor(deltaY);
++      contentWindow.windowUtils.sendWheelEvent(
++        clientX,
++        clientY,
++        0,
++        deltaY,
++        0,
++        contentWindow.WheelEvent.DOM_DELTA_PIXEL,
++        0,
++        0,
++        lineDeltaY,
++        0
++      );
++    } catch {
++      const scrollTarget = this.googleDocsScrollableAncestor(target);
++      if (scrollTarget) {
++        scrollTarget.scrollBy({ top: deltaY, left: 0, behavior: "auto" });
++      } else {
++        contentWindow.scrollBy({ top: deltaY, left: 0, behavior: "auto" });
++      }
++    }
++  }
++
+   collectSessionState() {
+@@ -283,6 +402,10 @@ export class GeckoViewContentChild extends GeckoViewActorChild {
+         );
+         break;
+       }
++      case "GeckoView:GoogleDocsPan": {
++        this.handleGoogleDocsPan(message.data);
++        break;
++      }
+       case "ContainsFormData": {
+         return this.containsFormData();
+       }
