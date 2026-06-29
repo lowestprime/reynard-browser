@@ -860,8 +860,9 @@ final class BookmarksViewController: UIViewController, UITableViewDataSource, UI
             var seen = Set<URL>()
 
             for item in importedItems {
+                let existingBookmark = self.store.bookmark(savedFor: item.url)
                 guard seen.insert(item.url).inserted,
-                      self.store.bookmark(savedFor: item.url) == nil else {
+                      case .none = existingBookmark else {
                     skipped += 1
                     continue
                 }

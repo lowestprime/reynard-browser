@@ -51,7 +51,7 @@ final class WebsiteModePolicy {
 
         let enablesDesktopMode = !isDesktop
         let desktopURL = enablesDesktopMode ? desktopURL(from: url) : nil
-        let desktopHost = desktopURL.flatMap(DomainMatcher.host)
+        let desktopHost = desktopURL.flatMap { DomainMatcher.host(from: $0) }
         var tabOverrides = desktopOverridesByTab[tabID] ?? [:]
 
         for relatedHost in relatedOverrideHosts(

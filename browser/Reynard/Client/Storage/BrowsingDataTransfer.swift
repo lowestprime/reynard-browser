@@ -96,7 +96,7 @@ enum HistoryCSVTransfer {
             ]
         }
         let csv = rows.map { row in
-            row.map(escapeCSV).joined(separator: ",")
+            row.map { escapeCSV($0) }.joined(separator: ",")
         }.joined(separator: "\n")
         return Data(csv.utf8)
     }
