@@ -605,6 +605,7 @@ Major compare commits relevant to this fork:
 
 - CI commit `1a59aef` restores the split `build-gecko`/`archive-ipa` workflow, manual archive-only workflow, sccache restore/save, Gecko dist checkpoint artifact, unsigned archive flags, and conditional Gecko artifact signing.
 - App commit `97b54a0` ports only missing custom behavior onto upstream's refactored application architecture.
+- Warning-cleanup commit `7431983` preserves behavior while removing three custom-code Swift concurrency diagnostics found during the first final archive audit.
 - Upstream Page Zoom storage, `PageZoomSettingManager`, `SiteSettingsStore`, Gecko patch, action bar, and settings panes are retained. The action bar now also exposes a live discrete slider without introducing the historical parallel zoom store.
 - Keyboard handling now shrinks the actual page viewport to the keyboard intersection and uses Gecko focused-input geometry only as a bounded secondary correction.
 - Tab persistence can synchronously flush on lifecycle events. Scene/app lifecycle hooks save state, foreground recovery restores or rebuilds the selected session, and crash/kill callbacks replace sessions in place instead of removing tabs.
@@ -639,9 +640,21 @@ All listed checks returned zero and both workflow files parsed as YAML. Swift an
 - [x] Missing custom features integrated without duplicating upstream equivalents.
 - [x] Google Docs desktop compatibility profile implemented.
 - [x] Local/static validation complete.
-- [ ] Fresh Gecko checkpoint and IPA build complete for the 0.5.0 inputs.
-- [ ] IPA downloaded, structurally verified, hashed, and marker-checked.
-- [ ] Fork-only prerelease published with unsigned IPA and checksum.
+- [x] Fresh Gecko checkpoint and IPA build complete for the 0.5.0 inputs.
+- [x] IPA downloaded, structurally verified, hashed, and marker-checked.
+- [x] Fork-only prerelease published with unsigned IPA and checksum.
+
+### Final 0.5.0 fork release evidence
+
+- Full split workflow run `28337672838` succeeded at commit `5fb213e09f339e9084f813980fbd71296292849c`. It built Firefox `152.0.2`, uploaded `gecko-dist-aarch64-apple-ios`, consumed that checkpoint in the archive job, and uploaded `Reynard-latest-main-ipa`.
+- The post-build sccache report showed `5,253` compile requests, `4,735` executions, `3,930` cache hits, `786` misses, an `83.33%` hit rate, a `4 GiB` cache size, and an `8 GiB` maximum. No distributed compilations were used or claimed.
+- The first final archive contained no errors. Three avoidable warnings in custom code were removed by replacing actor-isolated function references with inheriting closures and avoiding optional synthesized equality from the background bookmark import path.
+- Archive-only workflow run `28344020417` then succeeded in `4m42s` at final app commit `74319832e8d9d48fabeba8158e05e74a36b4c059`, proving that archive-stage iterations can reuse the prior Gecko checkpoint without rebuilding Gecko.
+- The final artifact `Reynard-latest-main-ipa` is artifact ID `7941166120`, artifact digest `sha256:6b17311e1e1cda01e2b551080b2653118f5b6fdd20667d3d176f5440845bbb5f`, and expires `2026-07-13T02:06:19Z`.
+- Downloaded IPA: `C:\Users\Cooper\Downloads\Reynard-0.5.0-custom-sideload-28344020417\Reynard.ipa`, `110,129,352` bytes, SHA-256 `1eff27f276977e3a8804b5040e45946ba33552c3066ad3e98c6aa2c57e75d828`.
+- IPA verification passed: ZIP integrity, `3,032` unique entries, main app plus both extensions and GeckoView/XUL, app/helper/share version `0.5.0` build `7431983`, `21` valid arm64 Mach-O files, no signature directory or provisioning profile, and all selected custom-feature markers.
+- Fork prerelease: `https://github.com/lowestprime/reynard-browser/releases/tag/reynard-0.5.0-custom-sideload-2026-06-28`. GitHub's release-asset digest for `Reynard.ipa` matches the locally verified SHA-256. The release also includes `Reynard.ipa.sha256`.
+- No upstream pull request, merge request, review, comment, or merge action was created or modified.
 
 ## Plan of Work
 
