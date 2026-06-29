@@ -771,8 +771,8 @@ Progress:
 - [x] Current Google Docs vertical bridge, keyboard avoidance, Page Zoom/session settings, and clipboard patch paths inspected.
 - [x] Advanced gesture and clipboard implementation complete.
 - [x] Local/static checks pass.
-- [ ] Final GitHub Actions workflow passes.
-- [ ] IPA downloaded, inspected, hashed, and published in a new fork prerelease.
+- [x] Final GitHub Actions workflow passes.
+- [x] IPA downloaded, inspected, hashed, and published in a new fork prerelease.
 
 Validation so far:
 
@@ -785,6 +785,17 @@ Validation so far:
   - `patches/mobile/shared/modules/geckoview/zz_GoogleDocsInteraction.sys.mjs.patch`
 - `node --check` passed on the patched `mobile/shared/actors/GeckoViewContentChild.sys.mjs` and `mobile/shared/modules/geckoview/GeckoViewContent.sys.mjs` in that disposable worktree.
 - The disposable Firefox worktree and LF patch copies were removed after validation.
+- Full checkpointed workflow run `28389212445`, `https://github.com/lowestprime/reynard-browser/actions/runs/28389212445`, passed at app commit `772c2fa0a18371be4e28b922243d515a35cf1fee`.
+- Gecko checkpoint job `84111658321` passed. `Build Gecko` ran from `17:15:09Z` to `17:22:51Z`; sccache restored key `gecko-sccache-macOS-ARM64-ab87ee12e93b121a2f943dfe2449d8b0e88d23b2539c5b54dc6aff1f4bbd05fe-28357388903`, reported `5,253` compile requests, `4,645` cache hits, `71` misses, `98.49%` cache hit rate, `4 GiB` cache size, `8 GiB` max cache size, and no failed distributed compilations.
+- Gecko dist checkpoint `gecko-dist-aarch64-apple-ios` uploaded as artifact ID `7959452249`, size `124,056,010` bytes, digest `sha256:58d6924570dd37dd6000b8639dda4efd6a248aa6f8a9de8e019b11809ba34d22`.
+- Archive job `84115750477` downloaded that checkpoint, built `CURRENT_BUILD = 772c2fa`, created and verified `dist/Reynard.ipa`, and uploaded `Reynard-latest-main-ipa` as artifact ID `7959631056`, size `108,243,273` bytes, uploaded artifact ZIP digest `sha256:db23dba64e92610f534b0eaf27a175a48a23000b6fe43ca452040c367de3112c`.
+- Local IPA: `C:\Users\Cooper\Downloads\Reynard-0.5.0-gdocs-gesture-clipboard-fix-28389212445\Reynard.ipa`, `110,135,774` bytes, SHA-256 `d730223f1c11e55c221d4373987ede28a0ad2c0a20757a85e3b3ec505cf38bb9`.
+- Local IPA verification passed: `unzip -tq` reported no compressed-data errors; the IPA had `3,032` unique entries and no duplicates; `CFBundleShortVersionString` is `0.5.0`; `CFBundleVersion` is `772c2fa`; required main app, `Reynard Helper.appex`, `OpenIn.appex`, `GeckoView.framework`, and `XUL` entries are present; no `_CodeSignature` or `embedded.mobileprovision` entries were found.
+- Marker scan found `GeckoView:GoogleDocsPan`, `GeckoView:GoogleDocsContextMenu`, and `GeckoView:GoogleDocsClipboardCommand` in packaged GeckoView modules; `GoogleDocsHorizontalPinchContextMenuClipboardMarkdownCompatibility`, `Page Zoom`, and `Custom Accent` were found in the app binary. Release optimization did not retain every Swift dispatch dictionary string, so absent Swift marker strings are not treated as proof of missing behavior.
+- Fork prerelease `reynard-0.5.0-gdocs-gesture-clipboard-fix-2026-06-29` was published at `https://github.com/lowestprime/reynard-browser/releases/tag/reynard-0.5.0-gdocs-gesture-clipboard-fix-2026-06-29`, targeting `772c2fa0a18371be4e28b922243d515a35cf1fee`.
+- Release asset `Reynard.ipa` has GitHub asset digest `sha256:d730223f1c11e55c221d4373987ede28a0ad2c0a20757a85e3b3ec505cf38bb9`, matching the locally verified IPA. Release asset `Reynard.ipa.sha256` was uploaded beside it.
+- No upstream pull request, merge request, comment, review, or merge action was created or modified.
+- Remaining evidence gap: hands-on iOS device behavior for Google Docs horizontal panning, pinch Page Zoom fallback, long-press context behavior, copy/paste/Markdown paste, selection, keyboard behavior, theme toggles, ChatGPT/Gemini keyboard avoidance, and background tab recovery still requires manual installation and testing on the target device.
 
 ## Plan of Work
 
