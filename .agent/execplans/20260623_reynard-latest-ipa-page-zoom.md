@@ -709,6 +709,15 @@ Progress:
 - [ ] Final macOS archive-only or checkpointed workflow passes.
 - [ ] IPA downloaded, inspected, hashed, and published in a new fork prerelease.
 
+Active full-build handoff (2026-06-29):
+
+- Implementation commit `ffe429291a04faf2fb4cde11d31f797f5ffc801a` is pushed to `origin/fork/0.5.0-custom-sideload`.
+- Full checkpointed workflow run `28357388903` is `https://github.com/lowestprime/reynard-browser/actions/runs/28357388903` and is building that exact commit.
+- Completed live stages: dependency installation, restore of the prior branch's approximately `4.1 GB` sccache, Firefox `152.0.2` source checkout, all Gecko patches (including both new Docs patches and the modified UIKit theme patch), idevice FFI, and ld64 detection setup.
+- `Build Gecko` started at `2026-06-29T08:12:28Z`. The prior full run spent about `1h46m` in this stage even with an older cache; this run restored the newer cache from successful run `28337672838`, but acceleration must be judged from the final `sccache -s` output.
+- Per the no-idle-poll requirement, do not start another full build and do not spend a session only watching this compile. Resume with `gh run view 28357388903 --repo lowestprime/reynard-browser --json status,conclusion,headSha,url,jobs`.
+- If the run fails, retrieve `gh run view 28357388903 --repo lowestprime/reynard-browser --log-failed` and patch only the concrete failure. If it succeeds, inspect final sccache hits, download `Reynard-latest-main-ipa`, verify ZIP/plists/Mach-O/marker strings and build `ffe4292`, hash the IPA, then publish the new fork-only prerelease. No upstream PR action is permitted.
+
 ## Plan of Work
 
 First repair `.github/workflows/build-latest-reynard-ipa.yml` so the dependency step installs `lld`, prepends `/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/llvm/bin` for WASM-only wrapper commands, uses `command -v wasm-ld`, and validates a real WASM link using the Homebrew WASI sysroot. Commit, push, trigger the workflow, and inspect the result.
