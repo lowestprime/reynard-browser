@@ -239,6 +239,9 @@ final class BrowserViewController: UIViewController {
         )
         configureBrowserChromeActions()
         googleDocsInteractionController.install(in: contentView)
+        googleDocsInteractionController.onPageZoomLevelChange = { [weak self] level in
+            self?.setSelectedPageZoomLevel(level)
+        }
         tabBar.dataSource = self
         tabOverview.configure(dataSource: self, delegate: self, presentationContext: self)
         
@@ -712,7 +715,8 @@ final class BrowserViewController: UIViewController {
         let selectedTab = tabManager.selectedTab
         googleDocsInteractionController.update(
             session: selectedTab?.session,
-            url: selectedTab?.url
+            url: selectedTab?.url,
+            pageZoomLevel: selectedTab?.session.settings.pageZoom.level ?? Prefs.AppearanceSettings.defaultPageZoomLevel
         )
         reapplyKeyboardAvoidance(animation: KeyboardAnimation(duration: 0, curve: []))
     }

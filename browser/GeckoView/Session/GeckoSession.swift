@@ -26,6 +26,12 @@ public class GeckoSession {
         case cancelled
     }
 
+    public enum GoogleDocsClipboardCommand: String {
+        case copy
+        case pastePlainText
+        case pasteMarkdown
+    }
+
     // MARK: - State
     
     let dispatcher: GeckoEventDispatcherWrapper = GeckoEventDispatcherWrapper()
@@ -264,6 +270,7 @@ public class GeckoSession {
         phase: GoogleDocsPanPhase,
         xRatio: CGFloat,
         yRatio: CGFloat,
+        deltaXRatio: CGFloat,
         deltaYRatio: CGFloat,
         keyboardVisible: Bool
     ) {
@@ -274,8 +281,42 @@ public class GeckoSession {
                 "phase": phase.rawValue,
                 "xRatio": xRatio,
                 "yRatio": yRatio,
+                "deltaXRatio": deltaXRatio,
                 "deltaYRatio": deltaYRatio,
+                "gesture": "Google Docs horizontal pan compatibility",
                 "keyboardVisible": keyboardVisible,
+            ]
+        )
+    }
+
+    public func handleGoogleDocsContextMenu(
+        xRatio: CGFloat,
+        yRatio: CGFloat,
+        keyboardVisible: Bool
+    ) {
+        guard isOpen() else { return }
+        dispatcher.dispatch(
+            type: "GeckoView:GoogleDocsContextMenu",
+            message: [
+                "xRatio": xRatio,
+                "yRatio": yRatio,
+                "gesture": "Google Docs context menu compatibility",
+                "keyboardVisible": keyboardVisible,
+            ]
+        )
+    }
+
+    public func handleGoogleDocsClipboardCommand(
+        _ command: GoogleDocsClipboardCommand,
+        text: String?
+    ) {
+        guard isOpen() else { return }
+        dispatcher.dispatch(
+            type: "GeckoView:GoogleDocsClipboardCommand",
+            message: [
+                "command": command.rawValue,
+                "text": text ?? "",
+                "gesture": "Google Docs clipboard Markdown compatibility",
             ]
         )
     }

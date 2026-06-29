@@ -1,7 +1,7 @@
 diff --git a/mobile/shared/actors/GeckoViewContentChild.sys.mjs b/mobile/shared/actors/GeckoViewContentChild.sys.mjs
 --- a/mobile/shared/actors/GeckoViewContentChild.sys.mjs
 +++ b/mobile/shared/actors/GeckoViewContentChild.sys.mjs
-@@ -151,3 +151,122 @@ export class GeckoViewContentChild extends GeckoViewActorChild {
+@@ -151,3 +151,316 @@ export class GeckoViewContentChild extends GeckoViewActorChild {
    }
 -
 +
@@ -22,25 +22,61 @@ diff --git a/mobile/shared/actors/GeckoViewContentChild.sys.mjs b/mobile/shared/
 +    return element.parentElement || element.getRootNode?.()?.host || null;
 +  }
 +
-+  googleDocsScrollableAncestor(element) {
++  googleDocsScrollableAncestor(element, axis) {
 +    const { contentWindow } = this;
 +    let candidate = element;
 +    while (candidate && candidate !== contentWindow.document.documentElement) {
 +      if (candidate.nodeType === contentWindow.Node.ELEMENT_NODE) {
 +        const style = contentWindow.getComputedStyle(candidate);
-+        const permitsVerticalScroll = /^(auto|scroll|overlay)$/.test(
-+          style.overflowY
-+        );
-+        if (
-+          permitsVerticalScroll &&
-+          candidate.scrollHeight > candidate.clientHeight + 1
-+        ) {
++        const overflow = axis === "x" ? style.overflowX : style.overflowY;
++        const permitsScroll = /^(auto|scroll|overlay)$/.test(overflow);
++        const hasScrollRange =
++          axis === "x"
++            ? candidate.scrollWidth > candidate.clientWidth + 1
++            : candidate.scrollHeight > candidate.clientHeight + 1;
++        if (permitsScroll && hasScrollRange) {
 +          return candidate;
 +        }
 +      }
 +      candidate = this.googleDocsParentElement(candidate);
 +    }
 +    return null;
++  }
++
++  googleDocsClamp(value, minimum, maximum) {
++    return Math.min(maximum, Math.max(minimum, value));
++  }
++
++  googleDocsCoordinates(data) {
++    const { contentWindow } = this;
++    const viewport = contentWindow.visualViewport;
++    const viewportWidth = viewport?.width || contentWindow.innerWidth;
++    const viewportHeight = viewport?.height || contentWindow.innerHeight;
++    if (viewportWidth <= 0 || viewportHeight <= 0) {
++      return null;
++    }
++
++    const clientX =
++      this.googleDocsClamp(Number(data.xRatio) || 0, 0, 1) * viewportWidth;
++    const clientY =
++      this.googleDocsClamp(Number(data.yRatio) || 0, 0, 1) * viewportHeight;
++    return { clientX, clientY, viewportWidth, viewportHeight };
++  }
++
++  googleDocsTargetAt(data) {
++    const { contentWindow } = this;
++    const coordinates = this.googleDocsCoordinates(data);
++    if (!coordinates) {
++      return null;
++    }
++
++    return {
++      ...coordinates,
++      target: contentWindow.document.elementFromPoint(
++        coordinates.clientX,
++        coordinates.clientY
++      ),
++    };
 +  }
 +
 +  handleGoogleDocsPan(data) {
@@ -56,21 +92,13 @@ diff --git a/mobile/shared/actors/GeckoViewContentChild.sys.mjs b/mobile/shared/
 +      return;
 +    }
 +
-+    const viewport = contentWindow.visualViewport;
-+    const viewportWidth = viewport?.width || contentWindow.innerWidth;
-+    const viewportHeight = viewport?.height || contentWindow.innerHeight;
-+    if (viewportWidth <= 0 || viewportHeight <= 0) {
++    const hit = this.googleDocsTargetAt(data);
++    if (!hit) {
 +      return;
 +    }
 +
-+    const clamp = (value, minimum, maximum) =>
-+      Math.min(maximum, Math.max(minimum, value));
-+    const clientX = clamp(Number(data.xRatio) || 0, 0, 1) * viewportWidth;
-+    const clientY = clamp(Number(data.yRatio) || 0, 0, 1) * viewportHeight;
-+    const hitTarget = contentWindow.document.elementFromPoint(clientX, clientY);
-+
 +    if (phase === "began") {
-+      this.googleDocsPanTarget = hitTarget;
++      this.googleDocsPanTarget = hit.target;
 +      return;
 +    }
 +    if (phase !== "changed") {
@@ -79,7 +107,7 @@ diff --git a/mobile/shared/actors/GeckoViewContentChild.sys.mjs b/mobile/shared/
 +
 +    const target = this.googleDocsPanTarget?.isConnected
 +      ? this.googleDocsPanTarget
-+      : hitTarget;
++      : hit.target;
 +    if (!target) {
 +      return;
 +    }
@@ -94,41 +122,215 @@ diff --git a/mobile/shared/actors/GeckoViewContentChild.sys.mjs b/mobile/shared/
 +      return;
 +    }
 +
++    const deltaX =
++      this.googleDocsClamp(Number(data.deltaXRatio) || 0, -0.35, 0.35) *
++      hit.viewportWidth;
 +    const deltaY =
-+      clamp(Number(data.deltaYRatio) || 0, -0.35, 0.35) * viewportHeight;
-+    if (Math.abs(deltaY) < 0.25) {
++      this.googleDocsClamp(Number(data.deltaYRatio) || 0, -0.35, 0.35) *
++      hit.viewportHeight;
++    if (Math.abs(deltaX) < 0.25 && Math.abs(deltaY) < 0.25) {
 +      return;
 +    }
 +
 +    try {
-+      const lineDeltaY = deltaY > 0 ? Math.ceil(deltaY) : Math.floor(deltaY);
++      const lineDeltaX =
++        deltaX > 0 ? Math.ceil(deltaX) : Math.floor(deltaX);
++      const lineDeltaY =
++        deltaY > 0 ? Math.ceil(deltaY) : Math.floor(deltaY);
 +      contentWindow.windowUtils.sendWheelEvent(
-+        clientX,
-+        clientY,
-+        0,
++        hit.clientX,
++        hit.clientY,
++        deltaX,
 +        deltaY,
 +        0,
 +        contentWindow.WheelEvent.DOM_DELTA_PIXEL,
 +        0,
-+        0,
++        lineDeltaX,
 +        lineDeltaY,
 +        0
 +      );
 +    } catch {
-+      const scrollTarget = this.googleDocsScrollableAncestor(target);
-+      if (scrollTarget) {
-+        scrollTarget.scrollBy({ top: deltaY, left: 0, behavior: "auto" });
-+      } else {
-+        contentWindow.scrollBy({ top: deltaY, left: 0, behavior: "auto" });
++      const scrollXTarget =
++        Math.abs(deltaX) >= 0.25
++          ? this.googleDocsScrollableAncestor(target, "x")
++          : null;
++      const scrollYTarget =
++        Math.abs(deltaY) >= 0.25
++          ? this.googleDocsScrollableAncestor(target, "y")
++          : null;
++
++      if (scrollXTarget && scrollXTarget === scrollYTarget) {
++        scrollXTarget.scrollBy({
++          left: deltaX,
++          top: deltaY,
++          behavior: "auto",
++        });
++        return;
++      }
++
++      if (scrollXTarget) {
++        scrollXTarget.scrollBy({ left: deltaX, top: 0, behavior: "auto" });
++      } else if (Math.abs(deltaX) >= 0.25) {
++        contentWindow.scrollBy({ left: deltaX, top: 0, behavior: "auto" });
++      }
++
++      if (scrollYTarget) {
++        scrollYTarget.scrollBy({ left: 0, top: deltaY, behavior: "auto" });
++      } else if (Math.abs(deltaY) >= 0.25) {
++        contentWindow.scrollBy({ left: 0, top: deltaY, behavior: "auto" });
 +      }
 +    }
 +  }
 +
++  handleGoogleDocsContextMenu(data) {
++    if (!this.isGoogleDocsDocument()) {
++      return;
++    }
++
++    const { contentWindow } = this;
++    const hit = this.googleDocsTargetAt(data);
++    if (!hit?.target) {
++      return;
++    }
++    this.googleDocsClipboardTargetElement = hit.target;
++
++    try {
++      const utils = contentWindow.windowUtils;
++      utils.sendMouseEvent("mousemove", hit.clientX, hit.clientY, 0, 0, 0);
++      utils.sendMouseEvent("mousedown", hit.clientX, hit.clientY, 2, 1, 0);
++      utils.sendMouseEvent("contextmenu", hit.clientX, hit.clientY, 2, 1, 0);
++      utils.sendMouseEvent("mouseup", hit.clientX, hit.clientY, 2, 1, 0);
++      return;
++    } catch {}
++
++    const event = new contentWindow.MouseEvent("contextmenu", {
++      bubbles: true,
++      cancelable: true,
++      composed: true,
++      view: contentWindow,
++      button: 2,
++      buttons: 0,
++      clientX: hit.clientX,
++      clientY: hit.clientY,
++      screenX: contentWindow.screenX + hit.clientX,
++      screenY: contentWindow.screenY + hit.clientY,
++    });
++    hit.target.dispatchEvent(event);
++  }
++
++  googleDocsClipboardTarget(data) {
++    const { contentWindow } = this;
++    const focusedElement =
++      Services.focus.focusedElement || contentWindow.document.activeElement;
++    if (focusedElement?.ownerDocument === contentWindow.document) {
++      return focusedElement;
++    }
++
++    if (this.googleDocsClipboardTargetElement?.isConnected) {
++      return this.googleDocsClipboardTargetElement;
++    }
++
++    return this.googleDocsTargetAt(data)?.target || contentWindow.document.body;
++  }
++
++  handleGoogleDocsClipboardCommand(data) {
++    if (!this.isGoogleDocsDocument()) {
++      return;
++    }
++
++    const { contentWindow } = this;
++    const command = data.command;
++    const target = this.googleDocsClipboardTarget(data);
++    if (!target) {
++      return;
++    }
++
++    if (command === "copy") {
++      try {
++        contentWindow.document.execCommand("copy");
++      } catch {}
++      return;
++    }
++
++    if (command !== "pastePlainText" && command !== "pasteMarkdown") {
++      return;
++    }
++
++    const text = typeof data.text === "string" ? data.text : "";
++    if (!text.length) {
++      return;
++    }
++
++    try {
++      target.focus?.({ preventScroll: true });
++    } catch {
++      try {
++        target.focus?.();
++      } catch {}
++    }
++
++    let handled = false;
++    try {
++      const transfer = new contentWindow.DataTransfer();
++      transfer.setData("text/plain", text);
++      if (command === "pasteMarkdown") {
++        transfer.setData("text/markdown", text);
++      }
++      const pasteEvent = new contentWindow.ClipboardEvent("paste", {
++        bubbles: true,
++        cancelable: true,
++        composed: true,
++        clipboardData: transfer,
++      });
++      handled = !target.dispatchEvent(pasteEvent);
++    } catch {}
++
++    if (handled) {
++      return;
++    }
++
++    try {
++      if (contentWindow.document.execCommand("insertText", false, text)) {
++        return;
++      }
++    } catch {}
++
++    try {
++      const inputType =
++        command === "pasteMarkdown" ? "insertFromPaste" : "insertFromPaste";
++      const beforeInput = new contentWindow.InputEvent("beforeinput", {
++        bubbles: true,
++        cancelable: true,
++        composed: true,
++        inputType,
++        data: text,
++      });
++      if (target.dispatchEvent(beforeInput)) {
++        target.dispatchEvent(
++          new contentWindow.InputEvent("input", {
++            bubbles: true,
++            composed: true,
++            inputType,
++            data: text,
++          })
++        );
++      }
++    } catch {}
++  }
++
    collectSessionState() {
-@@ -283,6 +402,10 @@ export class GeckoViewContentChild extends GeckoViewActorChild {
+@@ -283,6 +596,18 @@ export class GeckoViewContentChild extends GeckoViewActorChild {
          );
          break;
        }
++      case "GeckoView:GoogleDocsContextMenu": {
++        this.handleGoogleDocsContextMenu(message.data);
++        break;
++      }
++      case "GeckoView:GoogleDocsClipboardCommand": {
++        this.handleGoogleDocsClipboardCommand(message.data);
++        break;
++      }
 +      case "GeckoView:GoogleDocsPan": {
 +        this.handleGoogleDocsPan(message.data);
 +        break;

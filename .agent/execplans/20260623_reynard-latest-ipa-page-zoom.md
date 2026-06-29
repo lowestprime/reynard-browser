@@ -726,6 +726,66 @@ Final regression-fix build and release evidence:
 - No upstream pull request, merge request, comment, review, or merge action was created or modified.
 - Remaining evidence gap: hands-on iOS device behavior for Google Docs canvas scrolling, Docs keyboard behavior, selection, paste, theme toggles, ChatGPT/Gemini keyboard avoidance, and background tab recovery still requires manual installation and testing on the target device.
 
+## Google Docs Advanced Gesture and Clipboard Fix
+
+Purpose: extend the latest Google Docs regression-fix build without replacing the now-working vertical scroll path. The target outcome is another fork-only unsigned sideload IPA where `docs.google.com` also supports practical horizontal panning, pinch zoom, tap-hold context behavior, and user-initiated copy/paste/Markdown paste fallback paths within iOS/Gecko limits.
+
+Current validation state from the device:
+
+- Vertical up/down touch scrolling in Google Docs now works.
+- Horizontal left/right swipe gestures still have no effect.
+- Pinch-to-zoom still has no effect.
+- Long press / tap-and-hold still does not bring up the Google Docs right-click/context menu.
+- Google Docs copy/paste and "paste from Markdown" menu options still do not work properly.
+
+Initial diagnosis:
+
+- The successful vertical path is native `GoogleDocsInteractionController` one-finger pan recognition, `GeckoSession.handleGoogleDocsPan`, a host-gated `GeckoView:GoogleDocsPan` Gecko module event, and a `docs.google.com` actor that injects pixel wheel input with `windowUtils.sendWheelEvent`. Keep this path intact and extend it.
+- Horizontal pan should use the same bridge with `deltaX` support and scrollable-ancestor fallback for `overflow-x` containers, while the native recognizer consumes only real document pans after movement intent is established.
+- Pinch zoom should not try to guess brittle Google Docs UI controls first. Use a bounded `docs.google.com` Page Zoom fallback through Reynard's existing per-site `SessionManager.setPageZoom` path, so the behavior is host-scoped and does not double-apply a separate Docs internal zoom.
+- Long press should send a host-gated right-click/context-menu event sequence into Gecko at the press location and expose a native fallback command menu for copy/paste actions. It must cancel on movement and must not run outside Google Docs.
+- Clipboard support should remain user-initiated. Native pasteboard text may be sent only when the user chooses the Docs fallback menu's paste action. Markdown paste should preserve Markdown source text and line breaks; rich Google Docs Markdown conversion is not promised unless Google Docs accepts the event/clipboard data.
+
+Planned implementation:
+
+- Extend `GoogleDocsInteractionController` with horizontal pan deltas, a pinch recognizer that maps pinch scale to bounded Page Zoom levels, a long-press recognizer, and a tiny responder anchor for Google Docs copy/paste/Paste Markdown fallback menu commands.
+- Extend `GeckoSession` with Google Docs context-menu and clipboard command dispatch.
+- Extend the existing durable Google Docs Gecko actor/module patches instead of creating a competing content helper.
+- Add marker strings for Google Docs horizontal pan, pinch Page Zoom fallback, context menu, clipboard, and Markdown paste compatibility.
+- Because Gecko patches change, run one full checkpointed build after local/static checks, then use archive-only only for later app-only corrections.
+
+Implementation notes:
+
+- Native pan recognition now accepts either dominant vertical or dominant horizontal one-finger intent, keeps the existing delayed/canceling behavior once a real pan starts, and dispatches both `deltaXRatio` and `deltaYRatio` through `GeckoView:GoogleDocsPan`.
+- Gecko's Docs actor now feeds both deltas into `windowUtils.sendWheelEvent`; its fallback finds `overflow-x` and `overflow-y` scrollable ancestors separately and scrolls the nearest matching container.
+- Native pinch recognition is Docs-host gated and maps pinch scale to Reynard's existing bounded Page Zoom levels for the selected `docs.google.com` tab. This deliberately uses browser Page Zoom as the stable fallback, not an unverified Docs internal zoom command.
+- Native long press is Docs-host gated, cancels on movement through `UILongPressGestureRecognizer.allowableMovement`, sends a `GeckoView:GoogleDocsContextMenu` event, and presents a small native fallback menu anchored at the press point.
+- Fallback menu actions send only user-initiated commands: `copy`, `pastePlainText`, or `pasteMarkdown`. Paste actions send `UIPasteboard.general.string` at the time the user taps the menu item. No background clipboard read or logging is added.
+- Gecko's clipboard command handler attempts `document.execCommand("copy")` for copy, a `ClipboardEvent("paste")` with `text/plain` and optional `text/markdown`, then `execCommand("insertText")`, then `beforeinput`/`input` fallback. Rich Markdown conversion remains dependent on what Google Docs accepts.
+
+Progress:
+
+- [x] New goal objective file read.
+- [x] Root `AGENTS.md`, root `PLANS.md`, current ExecPlan, branch, and latest twelve commits inspected.
+- [x] Current validation state recorded.
+- [x] Current Google Docs vertical bridge, keyboard avoidance, Page Zoom/session settings, and clipboard patch paths inspected.
+- [x] Advanced gesture and clipboard implementation complete.
+- [x] Local/static checks pass.
+- [ ] Final GitHub Actions workflow passes.
+- [ ] IPA downloaded, inspected, hashed, and published in a new fork prerelease.
+
+Validation so far:
+
+- `git diff --check` passed.
+- `bash -n tools/development/build-gecko.sh`, `bash -n tools/release/build-app.sh`, and `bash -n browser/Scripts/AddGecko.sh` passed.
+- A disposable Firefox worktree at `FIREFOX_152_0_2_RELEASE` / `e784efd49da7cd69805f55f3353b65ff430441a1` accepted the ordered relevant patches after LF-normalizing temporary patch copies for Windows-local validation:
+  - `patches/mobile/shared/actors/GeckoViewContentChild.sys.mjs.patch`
+  - `patches/mobile/shared/actors/zz_GoogleDocsInteraction.sys.mjs.patch`
+  - `patches/mobile/shared/modules/geckoview/GeckoViewContent.sys.mjs.patch`
+  - `patches/mobile/shared/modules/geckoview/zz_GoogleDocsInteraction.sys.mjs.patch`
+- `node --check` passed on the patched `mobile/shared/actors/GeckoViewContentChild.sys.mjs` and `mobile/shared/modules/geckoview/GeckoViewContent.sys.mjs` in that disposable worktree.
+- The disposable Firefox worktree and LF patch copies were removed after validation.
+
 ## Plan of Work
 
 First repair `.github/workflows/build-latest-reynard-ipa.yml` so the dependency step installs `lld`, prepends `/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/llvm/bin` for WASM-only wrapper commands, uses `command -v wasm-ld`, and validates a real WASM link using the Homebrew WASI sysroot. Commit, push, trigger the workflow, and inspect the result.
